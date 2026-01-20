@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}NASA Medical Inventory{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #0a0e27;
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        nav {
+            background: rgba(10, 14, 39, 0.95);
+            border-bottom: 1px solid rgba(252, 61, 33, 0.3);
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px 0;
+            text-decoration: none;
+            color: #fff;
+        }
+
+        .nav-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #FC3D21;
+        }
+
+        .nav-title {
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 5px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            background: rgba(252, 61, 33, 0.1);
+            color: #FC3D21;
+        }
+
+        .nav-links a.active {
+            background: rgba(252, 61, 33, 0.15);
+            color: #FC3D21;
+        }
+
+        /* Mobile menu toggle */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        /* Content area */
+        main {
+            min-height: calc(100vh - 70px);
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .menu-toggle {
+                display: block;
+            }
+
+            .nav-links {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: rgba(10, 14, 39, 0.98);
+                flex-direction: column;
+                gap: 0;
+                padding: 10px 0;
+                border-top: 1px solid rgba(252, 61, 33, 0.3);
+                display: none;
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links a {
+                padding: 15px 20px;
+                border-radius: 0;
+            }
+
+            .nav-title {
+                font-size: 14px;
+            }
+        }
+
+        {% block extra_style %}{% endblock %}
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="{% url 'medical_inventory:home' %}" class="nav-brand">
+                <span class="nav-logo">NASA</span>
+                <span class="nav-title">Medical Inventory</span>
+            </a>
+            
+            <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+            
+            <ul class="nav-links" id="navLinks">
+                <li><a href="{% url 'medical_inventory:home' %}" {% if request.path == '/' %}class="active"{% endif %}>Home</a></li>
+                <li><a href="{% url 'medical_inventory:lockscreen' %}" {% if 'lockscreen' in request.path %}class="active"{% endif %}>Access System</a></li>
+                <li><a href="{% url 'medical_inventory:inventory_dashboard' %}" {% if 'inventory' in request.path %}class="active"{% endif %}>Inventory</a></li>
+                <li><a href="{% url 'medical_inventory:pill_recognition' %}" {% if 'pill-recognition' in request.path %}class="active"{% endif %}>Pill Recognition</a></li>
+                <li><a href="/admin/" target="_blank">Admin</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        function toggleMenu() {
+            const navLinks = document.getElementById('navLinks');
+            navLinks.classList.toggle('active');
+        }
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const navLinks = document.getElementById('navLinks');
+            const menuToggle = document.querySelector('.menu-toggle');
+            
+            if (!navLinks.contains(event.target) && !menuToggle.contains(event.target)) {
+                navLinks.classList.remove('active');
+            }
+        });
+    </script>
+
+    {% block extra_script %}{% endblock %}
+</body>
+</html>

@@ -18,7 +18,6 @@ urlpatterns = [
     path('pill-recognition/', views.pill_recognition, name='pill_recognition'),
     
     # API endpoints
-    path('api/video-feed/', views.video_feed, name='video_feed'),
     path('api/authenticate/', views.authenticate_face, name='authenticate_face'),
     path('api/checkout/', views.checkout_medication, name='checkout_medication'),
     path('api/recognize-pill/', views.recognize_pill, name='recognize_pill'),
