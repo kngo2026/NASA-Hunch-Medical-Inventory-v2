@@ -1,218 +1,14 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Authentication - NASA Medical Inventory{% endblock %}
 
-{% block extra_style %}
-<style>
-    main {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: calc(100vh - 70px);
-        padding: 20px;
-    }
-
-    .container {
-        text-align: center;
-        max-width: 900px;
-        width: 100%;
-    }
-
-    h1 {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-    }
-
-    .subtitle {
-        font-size: 1.2rem;
-        color: rgba(255, 255, 255, 0.6);
-        margin-bottom: 40px;
-    }
-
-    .instructions {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .instructions p {
-        font-size: 1.1rem;
-        line-height: 1.6;
-        color: rgba(255, 255, 255, 0.7);
-    }
-
-    .camera-section {
-        margin-bottom: 30px;
-    }
-
-    .video-container {
-        position: relative;
-        width: 640px;
-        max-width: 100%;
-        height: 480px;
-        margin: 0 auto 20px;
-        border: 2px solid rgba(252, 61, 33, 0.5);
-        border-radius: 10px;
-        overflow: hidden;
-        background: #000;
-    }
-
-    #videoElement {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .canvas-container {
-        display: none;
-    }
-
-    .button-group {
-        display: flex;
-        gap: 15px;
-        justify-content: center;
-        flex-wrap: wrap;
-        margin-top: 20px;
-    }
-
-    .btn {
-        background: #FC3D21;
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    .btn:hover:not(:disabled) {
-        background: #d93419;
-        transform: translateY(-2px);
-    }
-
-    .btn:disabled {
-        background: #666;
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-
-    .btn-secondary {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-        background: rgba(255, 255, 255, 0.15);
-    }
-
-    .status-message {
-        padding: 15px;
-        border-radius: 8px;
-        margin-top: 20px;
-        text-align: center;
-        font-size: 1rem;
-    }
-
-    .status-message.info {
-        background: rgba(33, 150, 243, 0.2);
-        border: 1px solid rgba(33, 150, 243, 0.5);
-    }
-
-    .status-message.success {
-        background: rgba(76, 175, 80, 0.2);
-        border: 1px solid rgba(76, 175, 80, 0.5);
-        color: #4CAF50;
-    }
-
-    .status-message.error {
-        background: rgba(244, 67, 54, 0.2);
-        border: 1px solid rgba(244, 67, 54, 0.5);
-        color: #F44336;
-    }
-
-    .status-message.warning {
-        background: rgba(255, 193, 7, 0.2);
-        border: 1px solid rgba(255, 193, 7, 0.5);
-        color: #FFC107;
-    }
-
-    .auth-overlay {
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.9);
-        justify-content: center;
-        align-items: center;
-        z-index: 1000;
-    }
-
-    .auth-overlay.show {
-        display: flex;
-    }
-
-    .auth-message {
-        text-align: center;
-        padding: 40px;
-        background: rgba(10, 14, 39, 0.95);
-        border-radius: 15px;
-        border: 2px solid #FC3D21;
-    }
-
-    .auth-message h2 {
-        font-size: 2rem;
-        margin-bottom: 20px;
-    }
-
-    .spinner {
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top: 4px solid #FC3D21;
-        border-radius: 50%;
-        width: 50px;
-        height: 50px;
-        animation: spin 1s linear infinite;
-        margin: 20px auto;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    @media (max-width: 768px) {
-        .video-container {
-            width: 100%;
-            height: auto;
-            aspect-ratio: 4/3;
-        }
-
-        h1 {
-            font-size: 1.8rem;
-        }
-
-        .subtitle {
-            font-size: 1rem;
-        }
-
-        .button-group {
-            flex-direction: column;
-        }
-
-        .btn {
-            width: 100%;
-        }
-    }
-</style>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/lockscreen.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="lockscreen-container">
     <h1>Facial Recognition</h1>
     <p class="subtitle">Capture a photo for authentication</p>
 
@@ -230,8 +26,8 @@
         </div>
 
         <div class="button-group">
-            <button id="startCamera" class="btn">Start Camera</button>
-            <button id="captureBtn" class="btn" disabled>Capture & Authenticate</button>
+            <button id="startCamera" class="btn btn-primary">Start Camera</button>
+            <button id="captureBtn" class="btn btn-primary" disabled>Capture & Authenticate</button>
             <button id="retryBtn" class="btn btn-secondary" style="display: none;">Try Again</button>
         </div>
 
@@ -284,24 +80,18 @@
     }
 
     async function captureAndAuthenticate() {
-        // Disable button to prevent multiple clicks
         captureBtn.disabled = true;
         showStatus('Capturing image...', 'info');
 
-        // Set canvas size to match video
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
-        // Draw current frame to canvas
         ctx.drawImage(video, 0, 0);
         
-        // Convert canvas to blob
         canvas.toBlob(async (blob) => {
             showStatus('Analyzing facial features...', 'warning');
             authOverlay.classList.add('show');
 
             try {
-                // Send image to backend for face recognition
                 const formData = new FormData();
                 formData.append('image', blob, 'face.jpg');
 
@@ -318,11 +108,8 @@
                     document.querySelector('.spinner').style.display = 'none';
                     
                     showStatus('Authentication successful!', 'success');
-                    
-                    // Stop camera
                     stopCamera();
                     
-                    // Redirect after 2 seconds
                     setTimeout(() => {
                         window.location.href = `/medication-selection/${data.astronaut_id}/`;
                     }, 2000);
@@ -360,7 +147,6 @@
         statusMessage.className = 'status-message ' + type;
     }
 
-    // Cleanup on page unload
     window.addEventListener('beforeunload', stopCamera);
 </script>
 {% endblock %}

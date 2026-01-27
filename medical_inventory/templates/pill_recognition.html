@@ -1,159 +1,16 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Pill Recognition - NASA Medical Inventory{% endblock %}
 
-{% block extra_style %}
-<style>
-    .container {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-    }
-
-    .header {
-        text-align: center;
-        margin-bottom: 40px;
-    }
-
-    .header h1 {
-        font-size: 2.5rem;
-        margin-bottom: 10px;
-    }
-
-    .header p {
-        color: rgba(255, 255, 255, 0.6);
-    }
-
-    .camera-section {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 30px;
-        margin-bottom: 30px;
-        border: 1px solid rgba(252, 61, 33, 0.3);
-        text-align: center;
-    }
-
-    .video-container {
-        width: 100%;
-        max-width: 640px;
-        margin: 20px auto;
-        border: 2px solid rgba(252, 61, 33, 0.5);
-        border-radius: 10px;
-        overflow: hidden;
-        background: #000;
-    }
-
-    #videoElement {
-        width: 100%;
-        height: auto;
-    }
-
-    .canvas-container {
-        display: none;
-    }
-
-    .button-group {
-        margin: 20px 0;
-        display: flex;
-        gap: 15px;
-        justify-content: center;
-        flex-wrap: wrap;
-    }
-
-    button {
-        background: #FC3D21;
-        color: white;
-        border: none;
-        padding: 15px 30px;
-        font-size: 1.1rem;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-
-    button:hover:not(:disabled) {
-        background: #d93419;
-        transform: translateY(-2px);
-    }
-
-    button:disabled {
-        background: #666;
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-
-    .results-section {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 30px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        display: none;
-    }
-
-    .results-section.show {
-        display: block;
-    }
-
-    .results-section h2 {
-        color: #FC3D21;
-        margin-bottom: 20px;
-    }
-
-    .result-item {
-        background: rgba(255, 255, 255, 0.03);
-        padding: 20px;
-        margin-bottom: 15px;
-        border-radius: 10px;
-        border-left: 4px solid #4CAF50;
-    }
-
-    .result-item h3 {
-        margin-bottom: 10px;
-    }
-
-    .confidence {
-        color: #FFC107;
-        font-weight: bold;
-    }
-
-    .status-message {
-        padding: 15px;
-        border-radius: 8px;
-        margin: 15px 0;
-        text-align: center;
-    }
-
-    .status-message.info {
-        background: rgba(33, 150, 243, 0.2);
-        border: 1px solid rgba(33, 150, 243, 0.5);
-    }
-
-    .status-message.warning {
-        background: rgba(255, 193, 7, 0.2);
-        border: 1px solid rgba(255, 193, 7, 0.5);
-    }
-
-    .status-message.error {
-        background: rgba(244, 67, 54, 0.2);
-        border: 1px solid rgba(244, 67, 54, 0.5);
-    }
-
-    @media (max-width: 768px) {
-        .button-group {
-            flex-direction: column;
-        }
-
-        button {
-            width: 100%;
-        }
-    }
-</style>
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/pill-recognition.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="header">
-        <h1>💊 Pill Recognition System</h1>
+    <div class="page-header">
+        <h1>Pill Recognition System</h1>
         <p>Use your camera to identify medications</p>
     </div>
 
@@ -167,8 +24,8 @@
         </div>
 
         <div class="button-group">
-            <button id="startCamera">Start Camera</button>
-            <button id="captureBtn" disabled>Capture & Identify</button>
+            <button id="startCamera" class="btn btn-primary">Start Camera</button>
+            <button id="captureBtn" class="btn btn-primary" disabled>Capture & Identify</button>
         </div>
 
         <div id="statusMessage" class="status-message info">
@@ -256,7 +113,7 @@
             </div>
         `;
         
-        showStatus('Identification complete!', 'info');
+        showStatus('Identification complete!', 'success');
     }
 
     function showStatus(message, type) {

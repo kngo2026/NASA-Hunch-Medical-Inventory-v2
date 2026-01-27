@@ -1,10 +1,19 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Manage Astronauts - NASA Medical Inventory{% endblock %}
 
-{% block extra_style %}
-<style>
-    .container {
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/admin-pages.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Manage Astronauts</h1>
+        <p>Add astronauts and register their facial data</p>
+    </div>
+    {% comment %} .container {
         max-width: 1200px;
         margin: 0 auto;
         padding: 20px;
@@ -216,21 +225,8 @@
         border: 1px solid #4CAF50;
         color: #4CAF50;
     }
+ {% endcomment %}
 
-    .alert.error {
-        background: rgba(244, 67, 54, 0.2);
-        border: 1px solid #F44336;
-        color: #F44336;
-    }
-</style>
-{% endblock %}
-
-{% block content %}
-<div class="container">
-    <div class="header">
-        <h1>👨‍🚀 Manage Astronauts</h1>
-        <p style="color: rgba(255, 255, 255, 0.6);">Add astronauts and register their facial data</p>
-    </div>
 
     <div id="alertBox" class="alert"></div>
 
