@@ -12,10 +12,31 @@ import requests
 import json
 from datetime import timedelta
 from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
+import serial, time
 
 # Configuration
-ESP32_IP = "192.168.1.100"
+ESP32_PORT = "COM5"
+BAUD_RATE = 115200
 
+try:
+    esp32_serial = serial.Serial(ESP32_PORT, BAUD_RATE, timeout=2)
+    time.sleep(2)  # Wait for connection to establish
+    print("Connected to ESP32 on port", ESP32_PORT)
+except serial.SerialException as e:
+    print(f"Error connecting to ESP32: {e}")
+    esp32_serial = None
+    
+def send_unlock_signal():
+    """Send unlock signal to ESP32 via serial"""
+    if esp32_serial and esp32_serial.is_open:
+        try:
+            esp32_serial.write(b'O')  # unlock command
+            response = esp32_serial.readline().decode().strip()
+            return response == 'UNLOCKED'
+        except Exception as e:
+            print(f"Error sending unlock signal: {e}")
+            return False
+    return False 
 
 def home(request):
     """Home screen"""
@@ -72,6 +93,9 @@ def authenticate_face(request):
                     
                     if matches[0]:
                         # Face recognized!
+                        
+                        unlocked_sent = send_unlock_signal()
+                        
                         SystemLog.objects.create(
                             event_type='AUTH_SUCCESS',
                             astronaut=astronaut,
