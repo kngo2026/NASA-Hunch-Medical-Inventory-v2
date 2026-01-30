@@ -40,6 +40,33 @@ def load_pill_recognition_model():
             print(f"Error loading model: {e}")
             return None
     return None
+def send_unlock_signal():
+    """Send unlock signal to ESP32 via serial"""
+    if esp32_serial:
+        try:
+            esp32_serial.write(b'unlock')  # unlock command
+            response = esp32_serial.readline().decode().strip()
+            return response == 'UNLOCKED'
+        except Exception as e:
+            print(f"Error sending unlock signal: {e}")
+            return False
+    return False 
+
+# def send_lock_signal():
+#     """Send lock signal to ESP32 via serial"""
+#     if esp32_serial:
+#         try:
+#             esp32_serial.write(b'lock')  # unlock command
+#             response = esp32_serial.readline().decode().strip()
+#             return response == 'LOCKED'
+#         except Exception as e:
+#             print(f"Error sending unlock signal: {e}")
+#             return False
+#     return False
+
+def home(request):
+    """Home screen"""
+    return render(request, 'home.html')
 
 
 def preprocess_image_for_cnn(image_path, target_size=(224, 224)):
@@ -51,7 +78,6 @@ def preprocess_image_for_cnn(image_path, target_size=(224, 224)):
     img_array = img_array / 255.0  # Normalize to 0-1
     img_array = np.expand_dims(img_array, axis=0)  # Add batch dimension
     return img_array
-
 
 def recognize_pill_with_cnn(image_path):
     """
@@ -219,6 +245,86 @@ def match_pill_by_features(features):
                 'medication': med,
                 'confidence': score,
                 'reason': f"Matched on shape: {features['shape']}, color: {features['color']}"
+            })
+
+@csrf_exempt
+def authenticate_face(request):
+    """Single image capture face authentication"""
+    if request.method == 'POST' and request.FILES.get('image'):
+        try:
+            image_file = request.FILES['image']
+            
+            # Load image with face_recognition
+            image = face_recognition.load_image_file(image_file)
+            
+            # Find faces in the uploaded image
+            face_locations = face_recognition.face_locations(image, model="hog")
+            
+            if not face_locations:
+                SystemLog.objects.create(
+                    event_type='AUTH_FAILURE',
+                    description="No face detected in image",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No face detected. Please ensure your face is clearly visible.'
+                })
+            
+            # Get face encodings
+            face_encodings = face_recognition.face_encodings(image, face_locations)
+            
+            if not face_encodings:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Could not process face. Please try again.'
+                })
+            
+            # Load known faces from database
+            astronauts = Astronaut.objects.exclude(face_encoding__isnull=True)
+            
+            for face_encoding in face_encodings:
+                for astronaut in astronauts:
+                    known_encoding = pickle.loads(astronaut.face_encoding)
+                    
+                    # Compare faces
+                    matches = face_recognition.compare_faces([known_encoding], face_encoding, tolerance=0.6)
+                    
+                    if matches[0]:
+                        # Face recognized!
+                        
+                        unlocked_sent = send_unlock_signal()
+                        
+                        SystemLog.objects.create(
+                            event_type='AUTH_SUCCESS',
+                            astronaut=astronaut,
+                            description=f"Astronaut {astronaut.name} successfully authenticated",
+                            ip_address=request.META.get('REMOTE_ADDR')
+                        )
+                        
+                        return JsonResponse({
+                            'success': True,
+                            'astronaut_id': astronaut.id,
+                            'astronaut_name': astronaut.name,
+                            'door_unlocked': unlocked_sent,
+                        })
+            
+            # No match found
+            SystemLog.objects.create(
+                event_type='AUTH_FAILURE',
+                description="Face not recognized - unknown individual",
+                ip_address=request.META.get('REMOTE_ADDR')
+            )
+            
+            return JsonResponse({
+                'success': False,
+                'message': 'Face not recognized. Please ensure you are an authorized user.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Authentication error: {str(e)}'
             })
     
     # Sort by confidence
