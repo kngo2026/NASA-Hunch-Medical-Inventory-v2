@@ -15,6 +15,53 @@ class Astronaut(models.Model):
 
 
 class Medication(models.Model):
+    pill_shape = models.CharField(
+        max_length=20,
+        choices=[
+            ('ROUND', 'Round'),
+            ('OVAL', 'Oval'),
+            ('CAPSULE', 'Capsule'),
+            ('SQUARE', 'Square'),
+            ('DIAMOND', 'Diamond'),
+        ],
+        blank=True,
+        null=True
+    )
+    
+    pill_color = models.CharField(
+        max_length=20,
+        choices=[
+            ('WHITE', 'White'),
+            ('RED', 'Red'),
+            ('BLUE', 'Blue'),
+            ('GREEN', 'Green'),
+            ('YELLOW', 'Yellow'),
+            ('ORANGE', 'Orange'),
+            ('PINK', 'Pink'),
+            ('BROWN', 'Brown'),
+            ('BLACK', 'Black'),
+            ('MULTI-COLOR', 'Multi-color'),
+        ],
+        blank=True,
+        null=True
+    )
+    
+    pill_imprint = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Text/numbers on pill"
+    )
+    
+    pill_size = models.CharField(
+        max_length=10,
+        choices=[
+            ('SMALL', 'Small (<10mm)'),
+            ('MEDIUM', 'Medium (10-15mm)'),
+            ('LARGE', 'Large (>15mm)'),
+        ],
+        blank=True,
+        null=True
+    )
     MEDICATION_TYPES = [
         ('ANALGESIC', 'Pain Relief'),
         ('ANTIBIOTIC', 'Antibiotic'),
