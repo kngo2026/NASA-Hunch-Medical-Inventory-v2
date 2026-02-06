@@ -1,3 +1,5 @@
+# Enhanced urls.py - Add these routes to your medical_inventory/urls.py
+
 from django.urls import path
 from . import views
 

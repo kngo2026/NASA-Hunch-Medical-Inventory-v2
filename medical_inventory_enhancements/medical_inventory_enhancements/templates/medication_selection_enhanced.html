@@ -1,0 +1,321 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Medication Selection - NASA Medical Inventory{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/medication-selection.css' %}">
+<style>
+    .search-container {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+    
+    .search-box {
+        position: relative;
+    }
+    
+    .search-input {
+        width: 100%;
+        padding: 12px 40px 12px 12px;
+        font-size: 16px;
+        border: 2px solid rgba(252, 61, 33, 0.5);
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        color: white;
+    }
+    
+    .search-input:focus {
+        outline: none;
+        border-color: #FC3D21;
+    }
+    
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #FC3D21;
+        font-size: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>Medication Selection</h1>
+    <div class="astronaut-info">
+        <strong>Astronaut:</strong> {{ astronaut.name }} ({{ astronaut.astronaut_id }})
+    </div>
+</div>
+
+<div class="container">
+    <!-- Search Bar -->
+    <div class="search-container">
+        <div class="search-box">
+            <input type="text" 
+                   id="medicationSearch" 
+                   class="search-input" 
+                   placeholder="🔍 Search medications by name, type, or description..."
+                   autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Your Prescribed Medications</h2>
+        <div class="medication-grid" id="prescriptionGrid">
+            {% for prescription in prescriptions %}
+            <div class="medication-card prescription" 
+                 onclick="toggleMedication({{ prescription.medication.id }}, true)" 
+                 data-med-id="{{ prescription.medication.id }}" 
+                 data-is-prescription="true"
+                 data-name="{{ prescription.medication.name|lower }}"
+                 data-type="{{ prescription.medication.get_medication_type_display|lower }}"
+                 data-description="{{ prescription.medication.description|lower }}">
+                <div class="prescription-badge">PRESCRIBED</div>
+                <div class="medication-name">{{ prescription.medication.name }}</div>
+                <div class="medication-details">
+                    <div><strong>Dosage:</strong> {{ prescription.prescribed_dosage }}</div>
+                    <div><strong>Frequency:</strong> {{ prescription.frequency }}</div>
+                    <div><strong>Available:</strong> {{ prescription.medication.current_quantity }} units</div>
+                </div>
+                {% if prescription.medication.current_quantity > 10 %}
+                <span class="stock-indicator good">In Stock</span>
+                {% elif prescription.medication.current_quantity > 0 %}
+                <span class="stock-indicator low">Low Stock</span>
+                {% else %}
+                <span class="stock-indicator out">Out of Stock</span>
+                {% endif %}
+                <div class="quantity-selector" style="display: none;">
+                    <button onclick="event.stopPropagation(); decreaseQty({{ prescription.medication.id }})">-</button>
+                    <input type="number" id="qty-{{ prescription.medication.id }}" value="1" min="1" max="{{ prescription.medication.current_quantity }}" readonly>
+                    <button onclick="event.stopPropagation(); increaseQty({{ prescription.medication.id }}, {{ prescription.medication.current_quantity }})">+</button>
+                </div>
+            </div>
+            {% empty %}
+            <p style="color: rgba(255, 255, 255, 0.5);">No prescribed medications at this time.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>💊 Additional Available Medications</h2>
+        <div class="medication-grid" id="additionalGrid">
+            {% for medication in all_medications %}
+            <div class="medication-card" 
+                 onclick="toggleMedication({{ medication.id }}, false)" 
+                 data-med-id="{{ medication.id }}" 
+                 data-is-prescription="false"
+                 data-name="{{ medication.name|lower }}"
+                 data-type="{{ medication.get_medication_type_display|lower }}"
+                 data-description="{{ medication.description|lower }}">
+                <div class="medication-name">{{ medication.name }}</div>
+                <div class="medication-details">
+                    <div><strong>Type:</strong> {{ medication.get_medication_type_display }}</div>
+                    <div><strong>Dosage:</strong> {{ medication.dosage }}</div>
+                    <div><strong>Available:</strong> {{ medication.current_quantity }} units</div>
+                </div>
+                {% if medication.current_quantity > 10 %}
+                <span class="stock-indicator good">In Stock</span>
+                {% elif medication.current_quantity > 0 %}
+                <span class="stock-indicator low">Low Stock</span>
+                {% else %}
+                <span class="stock-indicator out">Out of Stock</span>
+                {% endif %}
+                <div class="quantity-selector" style="display: none;">
+                    <button onclick="event.stopPropagation(); decreaseQty({{ medication.id }})">-</button>
+                    <input type="number" id="qty-{{ medication.id }}" value="1" min="1" max="{{ medication.current_quantity }}" readonly>
+                    <button onclick="event.stopPropagation(); increaseQty({{ medication.id }}, {{ medication.current_quantity }})">+</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="checkout-section">
+        <h3>Selected Medications</h3>
+        <div class="selected-items" id="selectedItems">
+            <p style="color: rgba(255, 255, 255, 0.5);">No medications selected</p>
+        </div>
+        <button class="checkout-button" id="checkoutBtn" onclick="checkout()" disabled>
+            🔓 Checkout & Unlock Container
+        </button>
+    </div>
+</div>
+
+<div class="modal" id="checkoutModal">
+    <div class="modal-content">
+        <h2 id="modalTitle">Processing Checkout...</h2>
+        <div class="spinner" id="modalSpinner"></div>
+        <p id="modalMessage">Please wait while we process your request</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_script %}
+<script>
+    const selectedMedications = new Map();
+    const astronautId = {{ astronaut.id }};
+
+    // Search functionality
+    const searchInput = document.getElementById('medicationSearch');
+    let searchTimeout;
+
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        
+        searchTimeout = setTimeout(function() {
+            const query = searchInput.value.toLowerCase().trim();
+            
+            // Filter both prescription and additional grids
+            filterMedicationCards('prescriptionGrid', query);
+            filterMedicationCards('additionalGrid', query);
+        }, 300); // Debounce 300ms
+    });
+
+    function filterMedicationCards(gridId, query) {
+        const grid = document.getElementById(gridId);
+        const cards = grid.querySelectorAll('.medication-card');
+        
+        cards.forEach(card => {
+            if (!query) {
+                card.style.display = '';
+                return;
+            }
+            
+            const name = card.getAttribute('data-name') || '';
+            const type = card.getAttribute('data-type') || '';
+            const description = card.getAttribute('data-description') || '';
+            
+            const matches = name.includes(query) || 
+                          type.includes(query) || 
+                          description.includes(query);
+            
+            card.style.display = matches ? '' : 'none';
+        });
+    }
+
+    function toggleMedication(medId, isPrescription) {
+        const card = document.querySelector(`[data-med-id="${medId}"]`);
+        const qtySelector = card.querySelector('.quantity-selector');
+        
+        if (selectedMedications.has(medId)) {
+            selectedMedications.delete(medId);
+            card.classList.remove('selected');
+            qtySelector.style.display = 'none';
+        } else {
+            const qtyInput = document.getElementById(`qty-${medId}`);
+            selectedMedications.set(medId, {
+                quantity: parseInt(qtyInput.value),
+                isPrescription: isPrescription
+            });
+            card.classList.add('selected');
+            qtySelector.style.display = 'flex';
+        }
+        
+        updateCheckoutSection();
+    }
+
+    function increaseQty(medId, maxQty) {
+        const input = document.getElementById(`qty-${medId}`);
+        if (parseInt(input.value) < maxQty) {
+            input.value = parseInt(input.value) + 1;
+            if (selectedMedications.has(medId)) {
+                const med = selectedMedications.get(medId);
+                med.quantity = parseInt(input.value);
+                updateCheckoutSection();
+            }
+        }
+    }
+
+    function decreaseQty(medId) {
+        const input = document.getElementById(`qty-${medId}`);
+        if (parseInt(input.value) > 1) {
+            input.value = parseInt(input.value) - 1;
+            if (selectedMedications.has(medId)) {
+                const med = selectedMedications.get(medId);
+                med.quantity = parseInt(input.value);
+                updateCheckoutSection();
+            }
+        }
+    }
+
+    function updateCheckoutSection() {
+        const itemsDiv = document.getElementById('selectedItems');
+        const checkoutBtn = document.getElementById('checkoutBtn');
+        
+        if (selectedMedications.size === 0) {
+            itemsDiv.innerHTML = '<p style="color: rgba(255, 255, 255, 0.5);">No medications selected</p>';
+            checkoutBtn.disabled = true;
+        } else {
+            let html = '';
+            selectedMedications.forEach((data, medId) => {
+                const card = document.querySelector(`[data-med-id="${medId}"]`);
+                const name = card.querySelector('.medication-name').textContent;
+                html += `
+                    <div class="selected-item">
+                        <span>${name} ${data.isPrescription ? '📋' : ''}</span>
+                        <span>Qty: ${data.quantity}</span>
+                    </div>
+                `;
+            });
+            itemsDiv.innerHTML = html;
+            checkoutBtn.disabled = false;
+        }
+    }
+
+    async function checkout() {
+        const medications = Array.from(selectedMedications.entries()).map(([medId, data]) => ({
+            medication_id: medId,
+            quantity: data.quantity,
+            is_prescription: data.isPrescription
+        }));
+
+        const modal = document.getElementById('checkoutModal');
+        modal.classList.add('show');
+
+        try {
+            const response = await fetch("{% url 'medical_inventory:checkout_medication' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    astronaut_id: astronautId,
+                    medications: medications
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                let title = '✓ Checkout Successful!';
+                let message = `Container ${data.unlock_status ? 'unlocked successfully' : 'unlock failed - please contact support'}. ${data.checkouts} medication(s) dispensed.`;
+                
+                // Show warnings if any
+                if (data.warnings && data.warnings.length > 0) {
+                    message += '\n\n⚠️ WARNING: ' + data.warning_message;
+                    title += ' (With Warnings)';
+                }
+                
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalSpinner').style.display = 'none';
+                document.getElementById('modalMessage').textContent = message;
+                
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, data.warnings && data.warnings.length > 0 ? 5000 : 3000);
+            } else {
+                throw new Error(data.message || 'Checkout failed');
+            }
+        } catch (error) {
+            document.getElementById('modalTitle').textContent = '✗ Error';
+            document.getElementById('modalSpinner').style.display = 'none';
+            document.getElementById('modalMessage').textContent = error.message || 'An error occurred. Please try again.';
+        }
+    }
+</script>
+{% endblock %}
