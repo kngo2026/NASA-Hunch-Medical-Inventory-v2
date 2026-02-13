@@ -13825,3 +13825,39 @@ Not Found: /favicon.ico
 "GET /static/css/medication-selection.css HTTP/1.1" 200 4964
 "GET / HTTP/1.1" 200 2627
 Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2627
+"GET /static/css/home.css HTTP/1.1" 304 0
+"GET /static/css/base.css HTTP/1.1" 304 0
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 9824
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 9824
+"GET / HTTP/1.1" 200 2627
+"GET /static/css/home.css HTTP/1.1" 200 1974
+"GET /static/css/base.css HTTP/1.1" 200 5130
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 9824
+"GET /lockscreen/ HTTP/1.1" 200 7196
+"GET /static/css/lockscreen.css HTTP/1.1" 200 3090
+"POST /api/authenticate/ HTTP/1.1" 200 71
+"GET /medication-selection/1/ HTTP/1.1" 200 16330
+"GET /static/css/medication-selection.css HTTP/1.1" 200 4964
+"GET /inventory/ HTTP/1.1" 200 9820
+"GET /static/css/inventory.css HTTP/1.1" 200 6040
+Internal Server Error: /api/medications/add/
+Traceback (most recent call last):
+  File "C:\Users\jayde\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jayde\AppData\Local\Programs\Python\Python312\Lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\jayde\Downloads\medical_inventory\medical-inventory-\medical_inventory\views.py", line 1747, in add_medication
+    form = MedicationForm()
+           ^^^^^^^^^^^^^^
+NameError: name 'MedicationForm' is not defined. Did you mean: 'Medication'?
+"GET /api/medications/add/ HTTP/1.1" 500 77144
+C:\Users\jayde\Downloads\medical_inventory\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /api/medications/add/ HTTP/1.1" 200 6292
+"GET /api/medications/add/ HTTP/1.1" 200 6292

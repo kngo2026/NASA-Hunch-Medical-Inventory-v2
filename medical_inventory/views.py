@@ -25,6 +25,7 @@ import base64
 import os
 from datetime import timedelta
 from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
+from .forms import MedicationForm
 
 # Import for deep learning model (TensorFlow/Keras)
 try:
