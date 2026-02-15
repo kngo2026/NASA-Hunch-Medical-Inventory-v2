@@ -1,0 +1,585 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bottle Reader - NASA Medical Inventory{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Match existing NASA theme */
+    .page-header {
+        text-align: center;
+        padding: 40px 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .page-header h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        margin-bottom: 10px;
+        background: linear-gradient(135deg, #FC3D21, #ff6b4a);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .page-header p {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: clamp(1rem, 2vw, 1.2rem);
+    }
+
+    .main-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 40px;
+        max-width: 1200px;
+        margin: 0 auto 40px;
+    }
+
+    .camera-section {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .video-container {
+        position: relative;
+        max-width: 640px;
+        margin: 0 auto 20px;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid rgba(252, 61, 33, 0.3);
+        background: #000;
+    }
+
+    video {
+        width: 100%;
+        display: block;
+    }
+
+    .canvas-container {
+        display: none;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: none;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: inline-block;
+    }
+
+    .btn-primary {
+        background: #FC3D21;
+        color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        background: #d93419;
+        transform: translateY(-2px);
+    }
+
+    .btn-success {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+        background: #388e3c;
+        transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+        background: #666;
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+
+    .status-message {
+        margin: 20px auto;
+        padding: 15px 20px;
+        border-radius: 8px;
+        max-width: 800px;
+        text-align: center;
+    }
+
+    .status-message.info {
+        background: rgba(33, 150, 243, 0.2);
+        border: 1px solid #2196F3;
+        color: #2196F3;
+    }
+
+    .status-message.success {
+        background: rgba(76, 175, 80, 0.2);
+        border: 1px solid #4CAF50;
+        color: #4CAF50;
+    }
+
+    .status-message.warning {
+        background: rgba(255, 193, 7, 0.2);
+        border: 1px solid #FFC107;
+        color: #FFC107;
+    }
+
+    .status-message.error {
+        background: rgba(244, 67, 54, 0.2);
+        border: 1px solid #F44336;
+        color: #F44336;
+    }
+
+    .results-section {
+        display: none;
+        margin-top: 30px;
+        animation: slideIn 0.5s ease;
+    }
+
+    .results-section.show {
+        display: block;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .result-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+
+    .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .result-header h2 {
+        margin: 0;
+        color: #fff;
+        font-size: 1.8rem;
+    }
+
+    .confidence-badge {
+        background: rgba(252, 61, 33, 0.2);
+        border: 1px solid #FC3D21;
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        color: #FC3D21;
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .info-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 15px;
+        border-radius: 8px;
+    }
+
+    .info-label {
+        font-size: 0.9em;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .info-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #fff;
+    }
+
+    .sorting-card {
+        background: rgba(252, 61, 33, 0.1);
+        border: 2px solid #FC3D21;
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 20px;
+    }
+
+    .sorting-header {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .bin-badge {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.8em;
+        font-weight: bold;
+        color: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        flex-shrink: 0;
+    }
+
+    .sorting-info {
+        flex: 1;
+    }
+
+    .sorting-label {
+        font-size: 0.9em;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 5px;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+
+    .sorting-location {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #FC3D21;
+    }
+
+    .sorting-instructions {
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #FC3D21;
+        margin-top: 15px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 20px;
+        flex-wrap: wrap;
+    }
+
+    .raw-text-section {
+        margin-top: 20px;
+    }
+
+    details {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        padding: 15px;
+    }
+
+    summary {
+        cursor: pointer;
+        color: #FC3D21;
+        font-weight: bold;
+        user-select: none;
+    }
+
+    summary:hover {
+        color: #ff6b4a;
+    }
+
+    .raw-text-content {
+        margin-top: 15px;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9em;
+        max-height: 200px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    @media (max-width: 768px) {
+        .main-card {
+            padding: 20px;
+        }
+
+        .result-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .sorting-header {
+            flex-direction: column;
+            text-align: center;
+        }
+
+        .action-buttons {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Bottle Reader</h1>
+        <p>Scan medication labels for automatic identification and sorting</p>
+    </div>
+
+    <div class="main-card">
+        <div class="camera-section">
+            <div class="video-container">
+                <video id="videoElement" autoplay playsinline></video>
+            </div>
+            
+            <canvas id="canvas" class="canvas-container"></canvas>
+
+            <div class="button-group">
+                <button id="startCamera" class="btn btn-primary">📷 Start Camera</button>
+                <button id="captureBtn" class="btn btn-success" disabled>✓ Scan Bottle</button>
+            </div>
+
+            <div id="statusMessage" class="status-message info">
+                Click "Start Camera" to begin scanning medication bottles
+            </div>
+        </div>
+
+        <div id="resultsSection" class="results-section">
+            <div class="result-card">
+                <div class="result-header">
+                    <h2 id="medicationName">Medication Name</h2>
+                    <span class="confidence-badge" id="confidenceBadge">0% confidence</span>
+                </div>
+
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Dosage</div>
+                        <div class="info-value" id="dosageValue">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Quantity</div>
+                        <div class="info-value" id="quantityValue">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">NDC Code</div>
+                        <div class="info-value" id="ndcValue">-</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Expiration</div>
+                        <div class="info-value" id="expirationValue">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sorting-card" id="sortingCard">
+                <div class="sorting-header">
+                    <div class="bin-badge" id="binBadge" style="background: #FC3D21;">A</div>
+                    <div class="sorting-info">
+                        <div class="sorting-label">SORT TO:</div>
+                        <div class="sorting-location" id="sortingLocation">Determining...</div>
+                    </div>
+                </div>
+                <div class="sorting-instructions" id="sortingInstructions">
+                    Scanning medication information...
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="addToInventory" class="btn btn-success">➕ Add to Inventory</button>
+                <button id="scanAnother" class="btn btn-primary">🔄 Scan Another</button>
+            </div>
+
+            <div class="raw-text-section">
+                <details>
+                    <summary>Show Raw OCR Text</summary>
+                    <div class="raw-text-content" id="rawText">
+                        No text detected yet
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let stream = null;
+    let currentResult = null;
+    
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startBtn = document.getElementById('startCamera');
+    const captureBtn = document.getElementById('captureBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const resultsSection = document.getElementById('resultsSection');
+
+    startBtn.addEventListener('click', startCamera);
+    captureBtn.addEventListener('click', scanBottle);
+    document.getElementById('scanAnother').addEventListener('click', resetScanner);
+    document.getElementById('addToInventory').addEventListener('click', addToInventory);
+
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    facingMode: 'environment'
+                } 
+            });
+            video.srcObject = stream;
+            captureBtn.disabled = false;
+            startBtn.disabled = true;
+            showStatus('Camera active. Position the bottle label in view and click "Scan Bottle"', 'info');
+        } catch (error) {
+            showStatus('Error accessing camera: ' + error.message, 'error');
+        }
+    }
+
+    async function scanBottle() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        
+        showStatus('📖 Reading bottle label...', 'info');
+        captureBtn.disabled = true;
+        
+        canvas.toBlob(async (blob) => {
+            const formData = new FormData();
+            formData.append('image', blob, 'bottle.jpg');
+            
+            try {
+                const response = await fetch('/api/read-pill-bottle/', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentResult = data;
+                    displayResults(data);
+                    showStatus('✓ Bottle successfully scanned!', 'success');
+                } else {
+                    showStatus(data.message || 'Could not read bottle label', 'error');
+                    if (data.suggestions) {
+                        let msg = data.message + '\n\nSuggestions:\n';
+                        data.suggestions.forEach(s => msg += '• ' + s + '\n');
+                        showStatus(msg, 'warning');
+                    }
+                    captureBtn.disabled = false;
+                }
+            } catch (error) {
+                showStatus('Error scanning bottle: ' + error.message, 'error');
+                captureBtn.disabled = false;
+            }
+        }, 'image/jpeg', 0.95);
+    }
+
+    function displayResults(data) {
+        resultsSection.classList.add('show');
+        
+        document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
+        document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
+        document.getElementById('dosageValue').textContent = data.dosage || 'Not detected';
+        document.getElementById('quantityValue').textContent = data.quantity || 'Not detected';
+        document.getElementById('ndcValue').textContent = data.ndc_code || 'Not detected';
+        document.getElementById('expirationValue').textContent = data.expiration_date || 'Not detected';
+        
+        // Sorting information
+        const binBadge = document.getElementById('binBadge');
+        binBadge.textContent = data.sorting.bin;
+        binBadge.style.background = data.sorting.color;
+        
+        document.getElementById('sortingLocation').textContent = data.sorting.location;
+        document.getElementById('sortingInstructions').textContent = data.sorting.instructions;
+        
+        // Raw text
+        document.getElementById('rawText').textContent = data.raw_text || 'No text extracted';
+        
+        // Database match indicator
+        if (data.database_match) {
+            showStatus(`✓ Medication found in system! Current stock: ${data.database_match.current_quantity}`, 'success');
+        }
+    }
+
+    function showStatus(message, type) {
+        statusMessage.textContent = message;
+        statusMessage.className = 'status-message ' + type;
+    }
+
+    function resetScanner() {
+        resultsSection.classList.remove('show');
+        captureBtn.disabled = false;
+        currentResult = null;
+        showStatus('Ready to scan another bottle', 'info');
+    }
+
+    async function addToInventory() {
+        if (!currentResult) return;
+        
+        try {
+            const response = await fetch('/api/add-bottle-to-inventory/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    medication_name: currentResult.medication_name,
+                    dosage: currentResult.dosage,
+                    quantity: currentResult.quantity,
+                    ndc_code: currentResult.ndc_code,
+                    category: currentResult.sorting.category
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showStatus('✓ Medication added to inventory!', 'success');
+                setTimeout(resetScanner, 2000);
+            } else {
+                showStatus('Error adding to inventory: ' + (data.error || 'Unknown error'), 'error');
+            }
+        } catch (error) {
+            showStatus('Error: ' + error.message, 'error');
+        }
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+</script>
+{% endblock %}

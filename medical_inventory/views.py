@@ -10,7 +10,13 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-
+import pytesseract
+from PIL import Image
+import re
+from django.core.files.storage import default_storage
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import render
 from PIL import Image
 import face_recognition
 import pickle
@@ -1748,3 +1754,312 @@ def add_medication(request):
         form = MedicationForm()
     
     return render(request, 'add_medication.html', {'form': form})
+
+class PillBottleReader:
+    """Read and interpret text from pill bottles using OCR"""
+    
+    def __init__(self):
+        # Sorting categories based on medication type
+        self.sorting_rules = {
+            'pain_relief': ['ibuprofen', 'acetaminophen', 'aspirin', 'naproxen', 'tylenol', 'advil', 'motrin', 'aleve'],
+            'antibiotics': ['amoxicillin', 'ciprofloxacin', 'azithromycin', 'penicillin', 'cephalexin', 'doxycycline'],
+            'cardiovascular': ['lisinopril', 'atorvastatin', 'metoprolol', 'amlodipine', 'losartan', 'carvedilol'],
+            'diabetes': ['metformin', 'insulin', 'glipizide', 'glyburide'],
+            'allergy': ['cetirizine', 'loratadine', 'diphenhydramine', 'benadryl', 'claritin', 'zyrtec', 'allegra'],
+            'gastrointestinal': ['omeprazole', 'ranitidine', 'pantoprazole', 'esomeprazole', 'lansoprazole'],
+            'vitamins': ['vitamin', 'multivitamin', 'calcium', 'iron', 'folic acid', 'vitamin d', 'vitamin c']
+        }
+        
+        self.dosage_pattern = re.compile(r'(\d+\.?\d*)\s*(mg|mcg|g|ml|units?)', re.IGNORECASE)
+    
+    def preprocess_image(self, image_path):
+        """Preprocess image for better OCR accuracy"""
+        img = cv2.imread(image_path)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        denoised = cv2.fastNlMeansDenoising(thresh)
+        return denoised
+    
+    def extract_text_from_bottle(self, image_path):
+        """Extract all text from pill bottle image"""
+        try:
+            processed_img = self.preprocess_image(image_path)
+            custom_config = r'--oem 3 --psm 6'
+            text = pytesseract.image_to_string(processed_img, config=custom_config)
+            return text.strip()
+        except Exception as e:
+            print(f"Error extracting text: {e}")
+            return ""
+    
+    def extract_medication_info(self, text):
+        """Parse medication name, dosage, and other info from OCR text"""
+        lines = [line.strip() for line in text.split('\n') if line.strip()]
+        
+        info = {
+            'medication_name': None,
+            'dosage': None,
+            'quantity': None,
+            'ndc_code': None,
+            'expiration_date': None,
+            'confidence': 0
+        }
+        
+        # Extract medication name (first substantial line)
+        for line in lines[:5]:
+            if len(line) > 3 and not line.isdigit():
+                info['medication_name'] = line
+                info['confidence'] += 20
+                break
+        
+        # Extract dosage
+        dosage_match = self.dosage_pattern.search(text)
+        if dosage_match:
+            info['dosage'] = f"{dosage_match.group(1)} {dosage_match.group(2)}"
+            info['confidence'] += 25
+        
+        # Extract quantity
+        qty_pattern = re.compile(r'(?:qty|count|quantity)[\s:]*(\d+)', re.IGNORECASE)
+        qty_match = qty_pattern.search(text)
+        if qty_match:
+            info['quantity'] = int(qty_match.group(1))
+            info['confidence'] += 15
+        
+        # Extract NDC code
+        ndc_pattern = re.compile(r'NDC[\s:]*(\d{4,5}-\d{3,4}-\d{1,2})', re.IGNORECASE)
+        ndc_match = ndc_pattern.search(text)
+        if ndc_match:
+            info['ndc_code'] = ndc_match.group(1)
+            info['confidence'] += 20
+        
+        # Extract expiration date
+        exp_pattern = re.compile(r'(?:exp|expires?)[\s:]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})', re.IGNORECASE)
+        exp_match = exp_pattern.search(text)
+        if exp_match:
+            info['expiration_date'] = exp_match.group(1)
+            info['confidence'] += 10
+        
+        return info
+    
+    def determine_sorting_location(self, medication_name):
+        """Determine where to sort the medication"""
+        if not medication_name:
+            return {
+                'category': 'unsorted',
+                'bin': 'A',
+                'location': 'Bin A - Unsorted/Unknown',
+                'instructions': 'Manual review required',
+                'color': '#gray'
+            }
+        
+        med_lower = medication_name.lower()
+        
+        location_map = {
+            'pain_relief': {
+                'bin': 'B',
+                'location': 'Bin B - Pain Relief & Anti-inflammatory',
+                'color': '#FF6B6B',
+                'instructions': 'Store at room temperature, away from light'
+            },
+            'antibiotics': {
+                'bin': 'C',
+                'location': 'Bin C - Antibiotics',
+                'color': '#4ECDC4',
+                'instructions': 'Check if refrigeration required. Complete full course.'
+            },
+            'cardiovascular': {
+                'bin': 'D',
+                'location': 'Bin D - Cardiovascular Medications',
+                'color': '#FF6B9D',
+                'instructions': 'Critical medications - priority storage'
+            },
+            'diabetes': {
+                'bin': 'E',
+                'location': 'Bin E - Diabetes Management',
+                'color': '#C44569',
+                'instructions': 'Temperature-sensitive. Monitor expiration closely.'
+            },
+            'allergy': {
+                'bin': 'F',
+                'location': 'Bin F - Allergy & Antihistamines',
+                'color': '#95E1D3',
+                'instructions': 'Fast-acting medications. Easy access required.'
+            },
+            'gastrointestinal': {
+                'bin': 'G',
+                'location': 'Bin G - Gastrointestinal',
+                'color': '#F38181',
+                'instructions': 'Store in cool, dry place'
+            },
+            'vitamins': {
+                'bin': 'H',
+                'location': 'Bin H - Vitamins & Supplements',
+                'color': '#AA96DA',
+                'instructions': 'Store in cool, dry place. Away from children.'
+            }
+        }
+        
+        # Check each category
+        for category, keywords in self.sorting_rules.items():
+            for keyword in keywords:
+                if keyword in med_lower:
+                    result = location_map[category].copy()
+                    result['category'] = category
+                    return result
+        
+        # Default to general medications
+        return {
+            'category': 'general',
+            'bin': 'I',
+            'location': 'Bin I - General Medications',
+            'color': '#FCBAD3',
+            'instructions': 'Standard storage conditions'
+        }
+    
+    def match_to_database(self, medication_name):
+        """Try to match detected medication to existing database entry"""
+        if not medication_name:
+            return None
+        
+        from .models import Medication
+        from django.db.models import Q
+        
+        # Clean the name
+        name_clean = medication_name.strip()
+        
+        # Try exact match
+        try:
+            return Medication.objects.get(name__iexact=name_clean)
+        except Medication.DoesNotExist:
+            pass
+        
+        # Try partial match
+        words = name_clean.split()
+        if words:
+            base_name = words[0]
+            return Medication.objects.filter(
+                Q(name__icontains=base_name) | 
+                Q(generic_name__icontains=base_name)
+            ).first()
+        
+        return None
+
+
+def bottle_reading_page(request):
+    """Page for pill bottle reading"""
+    return render(request, 'bottle_reader.html')
+
+
+@csrf_exempt
+def read_pill_bottle(request):
+    """API endpoint for reading pill bottles using OCR"""
+    if request.method == 'POST' and request.FILES.get('image'):
+        try:
+            image_file = request.FILES['image']
+            
+            # Save uploaded image temporarily
+            image_path = default_storage.save(
+                f'temp/bottle_reading/{image_file.name}', 
+                image_file
+            )
+            full_path = default_storage.path(image_path)
+            
+            # Initialize reader
+            reader = PillBottleReader()
+            
+            # Extract text
+            raw_text = reader.extract_text_from_bottle(full_path)
+            
+            if not raw_text or len(raw_text) < 3:
+                default_storage.delete(image_path)
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Could not read text from bottle. Please ensure the label is clearly visible and well-lit.',
+                    'suggestions': [
+                        'Hold the bottle steady',
+                        'Ensure good lighting',
+                        'Avoid glare on the label',
+                        'Make sure the label is in focus'
+                    ]
+                })
+            
+            # Parse medication info
+            med_info = reader.extract_medication_info(raw_text)
+            
+            # Determine sorting location
+            sorting = reader.determine_sorting_location(med_info['medication_name'])
+            
+            # Try to match to database
+            db_medication = reader.match_to_database(med_info['medication_name'])
+            
+            result = {
+                'success': True,
+                'raw_text': raw_text,
+                'medication_name': med_info['medication_name'],
+                'dosage': med_info['dosage'],
+                'quantity': med_info['quantity'],
+                'ndc_code': med_info['ndc_code'],
+                'expiration_date': med_info['expiration_date'],
+                'confidence': med_info['confidence'],
+                'sorting': sorting,
+                'database_match': None
+            }
+            
+            if db_medication:
+                result['database_match'] = {
+                    'id': db_medication.id,
+                    'name': db_medication.name,
+                    'current_quantity': db_medication.current_quantity,
+                    'exists_in_system': True
+                }
+            
+            # Clean up
+            default_storage.delete(image_path)
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            print(f"Error in read_pill_bottle: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'message': 'An error occurred while reading the bottle'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'POST request with image file required'
+    }, status=400)
+
+
+@csrf_exempt  
+def add_bottle_to_inventory(request):
+    """Add medication from bottle reading to inventory"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            from .models import Medication
+            
+            medication = Medication.objects.create(
+                name=data.get('medication_name'),
+                dosage=data.get('dosage'),
+                current_quantity=data.get('quantity', 0),
+                description=f"Added via bottle reader. NDC: {data.get('ndc_code', 'N/A')}",
+                category=data.get('category', 'general')
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'medication_id': medication.id,
+                'message': 'Medication added to inventory successfully'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=500)
+    
+    return JsonResponse({'success': False}, status=400)

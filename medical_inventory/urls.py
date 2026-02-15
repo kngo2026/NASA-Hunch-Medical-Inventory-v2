@@ -19,6 +19,9 @@ urlpatterns = [
     
     # Pill recognition
     path('pill-recognition/', views.pill_recognition, name='pill_recognition'),
+    path('bottle-reader/', views.bottle_reading_page, name='bottle_reader'),
+    path('api/read-pill-bottle/', views.read_pill_bottle, name='read_pill_bottle'),
+    path('api/add-bottle-to-inventory/', views.add_bottle_to_inventory, name='add_bottle_to_inventory'),
     
     # Admin Management Pages
     path('manage/astronauts/', views.manage_astronauts, name='manage_astronauts'),

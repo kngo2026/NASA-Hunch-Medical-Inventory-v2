@@ -14012,3 +14012,287 @@ Watching for file changes with StatReloader
 "GET /lockscreen/ HTTP/1.1" 200 7196
 "GET /static/css/lockscreen.css HTTP/1.1" 304 0
 "POST /api/authenticate/ HTTP/1.1" 200 61
+"GET / HTTP/1.1" 200 2627
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2627
+"GET /static/css/base.css HTTP/1.1" 200 5130
+"GET /static/css/home.css HTTP/1.1" 200 1974
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 10665
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'medical_inventory/bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 85895
+Not Found: /favicon.ico
+"GET /favicon.ico HTTP/1.1" 404 10665
+Not Found: /bottle_reader/
+"GET /bottle_reader/ HTTP/1.1" 404 10674
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'medical_inventory/bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 85895
+Watching for file changes with StatReloader
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'medical_inventory/templates/bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/templates/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 86192
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'medical_inventory/templates/bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/templates/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 86192
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 58, in home
+    return render(request, 'home.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 172, in render
+    return self._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'pill_recognition' not found. 'pill_recognition' is not a valid view function or pattern name.
+"GET / HTTP/1.1" 500 153729
+Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 58, in home
+    return render(request, 'home.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 172, in render
+    return self._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'pill_recognition' not found. 'pill_recognition' is not a valid view function or pattern name.
+"GET / HTTP/1.1" 500 153866
+Internal Server Error: /
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 58, in home
+    return render(request, 'home.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\backends\django.py", line 107, in render
+    return self.template.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 172, in render
+    return self._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader_tags.py", line 159, in render
+    return compiled_parent._render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 164, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 1018, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\base.py", line 979, in render_annotated
+    return self.render(context)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\defaulttags.py", line 480, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\base.py", line 98, in reverse
+    resolved_url = resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\urls\resolvers.py", line 831, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'pill_recognition' not found. 'pill_recognition' is not a valid view function or pattern name.
+"GET / HTTP/1.1" 500 153866
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2627
+"GET / HTTP/1.1" 200 2627
+"GET /pill-recognition/ HTTP/1.1" 200 6185
+"GET /static/css/pill-recognition.css HTTP/1.1" 200 2062
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'medical_inventory/templates/bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/templates/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 86055
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 85996
+Internal Server Error: /bottle-reader/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 1949, in bottle_reading_page
+    return render(request, 'bottle_reader.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medical_inventory/bottle_reader.html
+"GET /bottle-reader/ HTTP/1.1" 500 85996
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2627
+"GET /bottle-reader/ HTTP/1.1" 200 18553
+"GET /static/css/base.css HTTP/1.1" 200 5130
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"GET /bottle-reader/ HTTP/1.1" 200 18553
+"GET /bottle-reader/ HTTP/1.1" 200 18545
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 252
