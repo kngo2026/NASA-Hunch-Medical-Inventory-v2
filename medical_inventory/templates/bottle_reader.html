@@ -190,21 +190,31 @@
         color: #FC3D21;
     }
 
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
+    .match-info {
+        background: rgba(76, 175, 80, 0.1);
+        border: 1px solid #4CAF50;
+        padding: 20px;
+        border-radius: 8px;
         margin-bottom: 20px;
     }
 
-    .info-item {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 15px;
-        border-radius: 8px;
+    .match-info h3 {
+        color: #4CAF50;
+        margin-bottom: 10px;
+        font-size: 1.2rem;
     }
 
-    .info-label {
+    .match-details {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+    }
+
+    .match-item {
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    .match-label {
         font-size: 0.9em;
         color: rgba(255, 255, 255, 0.6);
         margin-bottom: 5px;
@@ -213,66 +223,53 @@
         letter-spacing: 0.5px;
     }
 
-    .info-value {
-        font-size: 1.2em;
+    .match-value {
+        font-size: 1.1em;
         font-weight: bold;
-        color: #fff;
     }
 
-    .sorting-card {
+    .location-card {
         background: rgba(252, 61, 33, 0.1);
         border: 2px solid #FC3D21;
         border-radius: 12px;
         padding: 25px;
         margin-top: 20px;
+        text-align: center;
     }
 
-    .sorting-header {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 20px;
+    .location-icon {
+        font-size: 3em;
+        margin-bottom: 10px;
     }
 
-    .bin-badge {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.8em;
-        font-weight: bold;
-        color: white;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        flex-shrink: 0;
-    }
-
-    .sorting-info {
-        flex: 1;
-    }
-
-    .sorting-label {
+    .location-label {
         font-size: 0.9em;
         color: rgba(255, 255, 255, 0.6);
-        margin-bottom: 5px;
+        margin-bottom: 10px;
         text-transform: uppercase;
         font-weight: 600;
         letter-spacing: 0.5px;
     }
 
-    .sorting-location {
-        font-size: 1.5em;
+    .location-value {
+        font-size: 1.8em;
         font-weight: bold;
         color: #FC3D21;
+        margin-bottom: 15px;
     }
 
-    .sorting-instructions {
-        background: rgba(255, 255, 255, 0.05);
-        padding: 15px;
-        border-radius: 8px;
-        border-left: 4px solid #FC3D21;
-        margin-top: 15px;
+    .not-found-card {
+        background: rgba(255, 193, 7, 0.1);
+        border: 2px solid #FFC107;
+        border-radius: 12px;
+        padding: 25px;
+        margin-top: 20px;
+        text-align: center;
+    }
+
+    .not-found-card h3 {
+        color: #FFC107;
+        margin-bottom: 15px;
     }
 
     .action-buttons {
@@ -329,13 +326,8 @@
             align-items: flex-start;
         }
 
-        .info-grid {
+        .match-details {
             grid-template-columns: 1fr;
-        }
-
-        .sorting-header {
-            flex-direction: column;
-            text-align: center;
         }
 
         .action-buttons {
@@ -352,8 +344,8 @@
 {% block content %}
 <div class="container">
     <div class="page-header">
-        <h1>Bottle Reader</h1>
-        <p>Scan medication labels for automatic identification and sorting</p>
+        <h1>🏷️ Bottle Reader</h1>
+        <p>Scan medication labels to find their location in inventory</p>
     </div>
 
     <div class="main-card">
@@ -381,42 +373,43 @@
                     <span class="confidence-badge" id="confidenceBadge">0% confidence</span>
                 </div>
 
-                <div class="info-grid">
-                    <div class="info-item">
-                        <div class="info-label">Dosage</div>
-                        <div class="info-value" id="dosageValue">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Quantity</div>
-                        <div class="info-value" id="quantityValue">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">NDC Code</div>
-                        <div class="info-value" id="ndcValue">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">Expiration</div>
-                        <div class="info-value" id="expirationValue">-</div>
+                <div id="matchInfo" class="match-info" style="display: none;">
+                    <h3>✓ Found in Inventory!</h3>
+                    <div class="match-details">
+                        <div class="match-item">
+                            <div class="match-label">Database Name</div>
+                            <div class="match-value" id="dbName">-</div>
+                        </div>
+                        <div class="match-item">
+                            <div class="match-label">Dosage</div>
+                            <div class="match-value" id="dbDosage">-</div>
+                        </div>
+                        <div class="match-item">
+                            <div class="match-label">Current Stock</div>
+                            <div class="match-value" id="dbQuantity">-</div>
+                        </div>
+                        <div class="match-item">
+                            <div class="match-label">Match Confidence</div>
+                            <div class="match-value" id="matchConfidence">-</div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="sorting-card" id="sortingCard">
-                <div class="sorting-header">
-                    <div class="bin-badge" id="binBadge" style="background: #FC3D21;">A</div>
-                    <div class="sorting-info">
-                        <div class="sorting-label">SORT TO:</div>
-                        <div class="sorting-location" id="sortingLocation">Determining...</div>
-                    </div>
+                <div id="locationCard" class="location-card">
+                    <div class="location-label">INVENTORY LOCATION</div>
+                    <div class="location-value" id="locationValue">Scanning...</div>
                 </div>
-                <div class="sorting-instructions" id="sortingInstructions">
-                    Scanning medication information...
+
+                <div id="notFoundCard" class="not-found-card" style="display: none;">
+                    <h3>Medication Not in Inventory</h3>
+                    <p>This medication was detected but is not in your system yet.</p>
+                    <p><strong>Detected:</strong> <span id="detectedName"></span></p>
                 </div>
             </div>
 
             <div class="action-buttons">
-                <button id="addToInventory" class="btn btn-success">➕ Add to Inventory</button>
-                <button id="scanAnother" class="btn btn-primary">🔄 Scan Another</button>
+                <button id="addToInventory" class="btn btn-success" style="display: none;">Add to Inventory</button>
+                <button id="scanAnother" class="btn btn-primary">Scan Another</button>
             </div>
 
             <div class="raw-text-section">
@@ -460,7 +453,7 @@
             video.srcObject = stream;
             captureBtn.disabled = false;
             startBtn.disabled = true;
-            showStatus('Camera active. Position the bottle label in view and click "Scan Bottle"', 'info');
+            showStatus('Camera active. Focus on the medication NAME on the label and click "Scan Bottle"', 'info');
         } catch (error) {
             showStatus('Error accessing camera: ' + error.message, 'error');
         }
@@ -471,7 +464,7 @@
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
         
-        showStatus('📖 Reading bottle label...', 'info');
+        showStatus('Reading medication name...', 'info');
         captureBtn.disabled = true;
         
         canvas.toBlob(async (blob) => {
@@ -511,26 +504,36 @@
         
         document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
         document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
-        document.getElementById('dosageValue').textContent = data.dosage || 'Not detected';
-        document.getElementById('quantityValue').textContent = data.quantity || 'Not detected';
-        document.getElementById('ndcValue').textContent = data.ndc_code || 'Not detected';
-        document.getElementById('expirationValue').textContent = data.expiration_date || 'Not detected';
         
-        // Sorting information
-        const binBadge = document.getElementById('binBadge');
-        binBadge.textContent = data.sorting.bin;
-        binBadge.style.background = data.sorting.color;
+        // Show database match info if found
+        const matchInfo = document.getElementById('matchInfo');
+        const locationCard = document.getElementById('locationCard');
+        const notFoundCard = document.getElementById('notFoundCard');
+        const addBtn = document.getElementById('addToInventory');
         
-        document.getElementById('sortingLocation').textContent = data.sorting.location;
-        document.getElementById('sortingInstructions').textContent = data.sorting.instructions;
+        if (data.database_match && data.database_match.exists_in_system) {
+            matchInfo.style.display = 'block';
+            locationCard.style.display = 'block';
+            notFoundCard.style.display = 'none';
+            addBtn.style.display = 'none';
+            
+            document.getElementById('dbName').textContent = data.database_match.name;
+            document.getElementById('dbDosage').textContent = data.database_match.dosage || 'Not specified';
+            document.getElementById('dbQuantity').textContent = data.database_match.current_quantity;
+            document.getElementById('matchConfidence').textContent = `${data.database_match.match_confidence}%`;
+            
+            document.getElementById('locationValue').textContent = data.inventory_location || 'Location not set';
+        } else {
+            matchInfo.style.display = 'none';
+            locationCard.style.display = 'none';
+            notFoundCard.style.display = 'block';
+            addBtn.style.display = 'inline-block';
+            
+            document.getElementById('detectedName').textContent = data.medication_name;
+        }
         
         // Raw text
         document.getElementById('rawText').textContent = data.raw_text || 'No text extracted';
-        
-        // Database match indicator
-        if (data.database_match) {
-            showStatus(`✓ Medication found in system! Current stock: ${data.database_match.current_quantity}`, 'success');
-        }
     }
 
     function showStatus(message, type) {
@@ -557,9 +560,7 @@
                 body: JSON.stringify({
                     medication_name: currentResult.medication_name,
                     dosage: currentResult.dosage,
-                    quantity: currentResult.quantity,
-                    ndc_code: currentResult.ndc_code,
-                    category: currentResult.sorting.category
+                    quantity: 0
                 })
             });
             

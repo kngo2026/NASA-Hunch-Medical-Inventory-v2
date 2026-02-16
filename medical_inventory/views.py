@@ -10,14 +10,13 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
-import pytesseract
 from PIL import Image
+from difflib import SequenceMatcher
 import re
 from django.core.files.storage import default_storage
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import render
-from PIL import Image
 import face_recognition
 import pickle
 import requests
@@ -30,8 +29,7 @@ import io
 import base64
 import os
 from datetime import timedelta
-from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
-from .forms import MedicationForm
+
 
 # Import for deep learning model (TensorFlow/Keras)
 try:
@@ -44,7 +42,11 @@ except ImportError:
 
 # Import for color/shape analysis
 from sklearn.cluster import KMeans
-
+import pytesseract
+if os.name == 'nt':
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
+from .forms import MedicationForm
 # Configuration
 ESP32_IP = "192.168.1.100"
 
@@ -1756,192 +1758,269 @@ def add_medication(request):
     return render(request, 'add_medication.html', {'form': form})
 
 class PillBottleReader:
-    """Read and interpret text from pill bottles using OCR"""
     
     def __init__(self):
-        # Sorting categories based on medication type
-        self.sorting_rules = {
-            'pain_relief': ['ibuprofen', 'acetaminophen', 'aspirin', 'naproxen', 'tylenol', 'advil', 'motrin', 'aleve'],
-            'antibiotics': ['amoxicillin', 'ciprofloxacin', 'azithromycin', 'penicillin', 'cephalexin', 'doxycycline'],
-            'cardiovascular': ['lisinopril', 'atorvastatin', 'metoprolol', 'amlodipine', 'losartan', 'carvedilol'],
-            'diabetes': ['metformin', 'insulin', 'glipizide', 'glyburide'],
-            'allergy': ['cetirizine', 'loratadine', 'diphenhydramine', 'benadryl', 'claritin', 'zyrtec', 'allegra'],
-            'gastrointestinal': ['omeprazole', 'ranitidine', 'pantoprazole', 'esomeprazole', 'lansoprazole'],
-            'vitamins': ['vitamin', 'multivitamin', 'calcium', 'iron', 'folic acid', 'vitamin d', 'vitamin c']
-        }
-        
         self.dosage_pattern = re.compile(r'(\d+\.?\d*)\s*(mg|mcg|g|ml|units?)', re.IGNORECASE)
     
     def preprocess_image(self, image_path):
-        """Preprocess image for better OCR accuracy"""
+        """Enhanced preprocessing for maximum OCR accuracy"""
         img = cv2.imread(image_path)
+        
+        # Resize if too large
+        height, width = img.shape[:2]
+        if width > 1920 or height > 1080:
+            scale = min(1920/width, 1080/height)
+            img = cv2.resize(img, None, fx=scale, fy=scale)
+        
+        # Convert to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        denoised = cv2.fastNlMeansDenoising(thresh)
-        return denoised
+        
+        # Enhance contrast
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+        
+        # Denoise
+        denoised = cv2.fastNlMeansDenoising(enhanced, h=15)
+        
+        # Sharpen
+        kernel_sharpen = np.array([[-1,-1,-1], [-1, 9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(denoised, -1, kernel_sharpen)
+        
+        # Binary threshold
+        _, binary = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Clean up
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        
+        # Scale up 2x for better OCR
+        scale_percent = 200
+        width_scaled = int(cleaned.shape[1] * scale_percent / 100)
+        height_scaled = int(cleaned.shape[0] * scale_percent / 100)
+        scaled = cv2.resize(cleaned, (width_scaled, height_scaled), interpolation=cv2.INTER_CUBIC)
+        
+        return scaled
     
     def extract_text_from_bottle(self, image_path):
-        """Extract all text from pill bottle image"""
+        """Extract text using multiple OCR methods"""
         try:
             processed_img = self.preprocess_image(image_path)
-            custom_config = r'--oem 3 --psm 6'
-            text = pytesseract.image_to_string(processed_img, config=custom_config)
-            return text.strip()
+            pil_img = Image.fromarray(processed_img)
+            
+            # Try multiple configs
+            configs = [
+                '--oem 3 --psm 6',
+                '--oem 3 --psm 11',
+                '--oem 1 --psm 6',
+            ]
+            
+            results = []
+            for config in configs:
+                try:
+                    text = pytesseract.image_to_string(pil_img, config=config)
+                    if text and len(text.strip()) > 0:
+                        results.append(text.strip())
+                except:
+                    continue
+            
+            # Also try original image
+            try:
+                original = cv2.imread(image_path)
+                gray_simple = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+                text_simple = pytesseract.image_to_string(gray_simple, config='--oem 3 --psm 6')
+                if text_simple:
+                    results.append(text_simple.strip())
+            except:
+                pass
+            
+            if not results:
+                return ""
+            
+            # Combine all results into one big text block
+            combined_text = '\n'.join(results)
+            
+            print("\n=== OCR EXTRACTED TEXT ===")
+            print(combined_text[:500])  # Print first 500 chars
+            print("=" * 50)
+            
+            return combined_text
+            
         except Exception as e:
             print(f"Error extracting text: {e}")
             return ""
     
-    def extract_medication_info(self, text):
-        """Parse medication name, dosage, and other info from OCR text"""
-        lines = [line.strip() for line in text.split('\n') if line.strip()]
+    def search_for_medications_in_text(self, text):
+        """Search OCR text for known medications from database"""
+        from .models import Medication
         
-        info = {
-            'medication_name': None,
-            'dosage': None,
-            'quantity': None,
-            'ndc_code': None,
-            'expiration_date': None,
-            'confidence': 0
-        }
+        if not text:
+            return []
         
-        # Extract medication name (first substantial line)
-        for line in lines[:5]:
-            if len(line) > 3 and not line.isdigit():
-                info['medication_name'] = line
-                info['confidence'] += 20
-                break
+        # Get ALL medications from database
+        all_medications = Medication.objects.all()
         
-        # Extract dosage
+        if not all_medications.exists():
+            print("No medications in database to search for!")
+            return []
+        
+        # Clean the OCR text
+        text_clean = text.lower()
+        
+        # Remove extra whitespace
+        text_clean = ' '.join(text_clean.split())
+        
+        matches = []
+        
+        print(f"\n🔍 Searching for {all_medications.count()} medications in OCR text...")
+        
+        for med in all_medications:
+            # Search for medication name
+            med_name = med.name.lower().strip()
+            
+            # Also search generic name if it exists
+            generic_name = None
+            if hasattr(med, 'generic_name') and med.generic_name:
+                generic_name = med.generic_name.lower().strip()
+            
+            # Split into words for partial matching
+            name_words = med_name.split()
+            
+            # Calculate match score
+            score = 0
+            match_method = None
+            
+            # Method 1: Exact match (best)
+            if med_name in text_clean:
+                score = 95
+                match_method = "exact match"
+            
+            # Method 2: Generic name exact match
+            elif generic_name and generic_name in text_clean:
+                score = 90
+                match_method = "generic name exact"
+            
+            # Method 3: All words present (good)
+            elif len(name_words) > 1 and all(word in text_clean for word in name_words):
+                score = 85
+                match_method = "all words present"
+            
+            # Method 4: Main word present (for compound names)
+            elif len(name_words) > 1 and name_words[0] in text_clean:
+                # Main word is usually the first word (e.g., "PENICILLIN" in "Penicillin V")
+                score = 75
+                match_method = f"main word '{name_words[0]}'"
+            
+            # Method 5: Fuzzy match (okay)
+            else:
+                # Try fuzzy matching on each line
+                for line in text.split('\n'):
+                    line_clean = line.lower().strip()
+                    if len(line_clean) < 3:
+                        continue
+                    
+                    similarity = SequenceMatcher(None, med_name, line_clean).ratio()
+                    if similarity > 0.7:  # 70% similarity
+                        score = similarity * 70  # Max 70 for fuzzy
+                        match_method = f"fuzzy match ({similarity:.0%})"
+                        break
+            
+            if score > 0:
+                matches.append({
+                    'medication': med,
+                    'score': score,
+                    'method': match_method,
+                    'name': med.name
+                })
+                print(f"  ✓ Found: {med.name} (score: {score}, method: {match_method})")
+        
+        # Sort by score (highest first)
+        matches.sort(key=lambda x: x['score'], reverse=True)
+        
+        return matches
+    
+    def extract_dosage(self, text):
+        """Extract dosage from text"""
         dosage_match = self.dosage_pattern.search(text)
         if dosage_match:
-            info['dosage'] = f"{dosage_match.group(1)} {dosage_match.group(2)}"
-            info['confidence'] += 25
-        
-        # Extract quantity
-        qty_pattern = re.compile(r'(?:qty|count|quantity)[\s:]*(\d+)', re.IGNORECASE)
-        qty_match = qty_pattern.search(text)
-        if qty_match:
-            info['quantity'] = int(qty_match.group(1))
-            info['confidence'] += 15
-        
-        # Extract NDC code
-        ndc_pattern = re.compile(r'NDC[\s:]*(\d{4,5}-\d{3,4}-\d{1,2})', re.IGNORECASE)
-        ndc_match = ndc_pattern.search(text)
-        if ndc_match:
-            info['ndc_code'] = ndc_match.group(1)
-            info['confidence'] += 20
-        
-        # Extract expiration date
-        exp_pattern = re.compile(r'(?:exp|expires?)[\s:]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})', re.IGNORECASE)
-        exp_match = exp_pattern.search(text)
-        if exp_match:
-            info['expiration_date'] = exp_match.group(1)
-            info['confidence'] += 10
-        
-        return info
-    
-    def determine_sorting_location(self, medication_name):
-        """Determine where to sort the medication"""
-        if not medication_name:
-            return {
-                'category': 'unsorted',
-                'bin': 'A',
-                'location': 'Bin A - Unsorted/Unknown',
-                'instructions': 'Manual review required',
-                'color': '#gray'
-            }
-        
-        med_lower = medication_name.lower()
-        
-        location_map = {
-            'pain_relief': {
-                'bin': 'B',
-                'location': 'Bin B - Pain Relief & Anti-inflammatory',
-                'color': '#FF6B6B',
-                'instructions': 'Store at room temperature, away from light'
-            },
-            'antibiotics': {
-                'bin': 'C',
-                'location': 'Bin C - Antibiotics',
-                'color': '#4ECDC4',
-                'instructions': 'Check if refrigeration required. Complete full course.'
-            },
-            'cardiovascular': {
-                'bin': 'D',
-                'location': 'Bin D - Cardiovascular Medications',
-                'color': '#FF6B9D',
-                'instructions': 'Critical medications - priority storage'
-            },
-            'diabetes': {
-                'bin': 'E',
-                'location': 'Bin E - Diabetes Management',
-                'color': '#C44569',
-                'instructions': 'Temperature-sensitive. Monitor expiration closely.'
-            },
-            'allergy': {
-                'bin': 'F',
-                'location': 'Bin F - Allergy & Antihistamines',
-                'color': '#95E1D3',
-                'instructions': 'Fast-acting medications. Easy access required.'
-            },
-            'gastrointestinal': {
-                'bin': 'G',
-                'location': 'Bin G - Gastrointestinal',
-                'color': '#F38181',
-                'instructions': 'Store in cool, dry place'
-            },
-            'vitamins': {
-                'bin': 'H',
-                'location': 'Bin H - Vitamins & Supplements',
-                'color': '#AA96DA',
-                'instructions': 'Store in cool, dry place. Away from children.'
-            }
-        }
-        
-        # Check each category
-        for category, keywords in self.sorting_rules.items():
-            for keyword in keywords:
-                if keyword in med_lower:
-                    result = location_map[category].copy()
-                    result['category'] = category
-                    return result
-        
-        # Default to general medications
-        return {
-            'category': 'general',
-            'bin': 'I',
-            'location': 'Bin I - General Medications',
-            'color': '#FCBAD3',
-            'instructions': 'Standard storage conditions'
-        }
-    
-    def match_to_database(self, medication_name):
-        """Try to match detected medication to existing database entry"""
-        if not medication_name:
-            return None
-        
-        from .models import Medication
-        from django.db.models import Q
-        
-        # Clean the name
-        name_clean = medication_name.strip()
-        
-        # Try exact match
-        try:
-            return Medication.objects.get(name__iexact=name_clean)
-        except Medication.DoesNotExist:
-            pass
-        
-        # Try partial match
-        words = name_clean.split()
-        if words:
-            base_name = words[0]
-            return Medication.objects.filter(
-                Q(name__icontains=base_name) | 
-                Q(generic_name__icontains=base_name)
-            ).first()
-        
+            return f"{dosage_match.group(1)} {dosage_match.group(2)}"
         return None
+    
+    def process_bottle_image(self, image_path):
+        """Complete pipeline: OCR -> Search for known medications"""
+        # Extract text
+        raw_text = self.extract_text_from_bottle(image_path)
+        
+        if not raw_text or len(raw_text) < 3:
+            return {
+                'success': False,
+                'message': 'Could not read text from bottle. Please ensure the label is clearly visible and well-lit.',
+                'suggestions': [
+                    'Hold the bottle steady',
+                    'Ensure good lighting',
+                    'Avoid glare on the label',
+                    'Make sure text is in focus',
+                    'Try holding the bottle at different angles'
+                ]
+            }
+        
+        # Search for medications in the extracted text
+        matches = self.search_for_medications_in_text(raw_text)
+        
+        if not matches:
+            return {
+                'success': False,
+                'message': 'No medications from your inventory were found on this label.',
+                'raw_text': raw_text,
+                'suggestions': [
+                    'Make sure the medication is in your database first',
+                    'Try scanning the label more clearly',
+                    'Check that the medication name is visible in the camera'
+                ]
+            }
+        
+        # Use the best match
+        best_match = matches[0]
+        medication = best_match['medication']
+        
+        # Extract dosage from text
+        dosage = self.extract_dosage(raw_text)
+        
+        result = {
+            'success': True,
+            'raw_text': raw_text,
+            'medication_name': medication.name,
+            'dosage': dosage or (medication.dosage if hasattr(medication, 'dosage') else None),
+            'confidence': round(best_match['score'], 1),
+            'match_method': best_match['method'],
+            'database_match': {
+                'id': medication.id,
+                'name': medication.name,
+                'dosage': medication.dosage if hasattr(medication, 'dosage') else None,
+                'current_quantity': medication.current_quantity,
+                'match_confidence': round(best_match['score'], 1),
+                'exists_in_system': True
+            },
+            'inventory_location': None,
+            'all_matches': []  # Include other possible matches
+        }
+        
+        # Add all matches for reference
+        for match in matches[:3]:  # Top 3 matches
+            result['all_matches'].append({
+                'name': match['name'],
+                'score': round(match['score'], 1),
+                'method': match['method']
+            })
+        
+        # Get inventory location
+        if hasattr(medication, 'location') and medication.location:
+            result['inventory_location'] = medication.location
+        else:
+            result['inventory_location'] = "Location not set in system"
+        
+        print(f"\n FINAL RESULT: {medication.name} ({best_match['score']:.1f}% confidence)")
+        
+        return result
 
 
 def bottle_reading_page(request):
@@ -1956,75 +2035,43 @@ def read_pill_bottle(request):
         try:
             image_file = request.FILES['image']
             
-            # Save uploaded image temporarily
-            image_path = default_storage.save(
-                f'temp/bottle_reading/{image_file.name}', 
-                image_file
-            )
-            full_path = default_storage.path(image_path)
+            # Save to TEMPORARY file (will be deleted immediately)
+            import tempfile
+            import os
             
-            # Initialize reader
-            reader = PillBottleReader()
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+                # Write uploaded image to temp file
+                for chunk in image_file.chunks():
+                    tmp_file.write(chunk)
+                temp_path = tmp_file.name
             
-            # Extract text
-            raw_text = reader.extract_text_from_bottle(full_path)
-            
-            if not raw_text or len(raw_text) < 3:
-                default_storage.delete(image_path)
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Could not read text from bottle. Please ensure the label is clearly visible and well-lit.',
-                    'suggestions': [
-                        'Hold the bottle steady',
-                        'Ensure good lighting',
-                        'Avoid glare on the label',
-                        'Make sure the label is in focus'
-                    ]
-                })
-            
-            # Parse medication info
-            med_info = reader.extract_medication_info(raw_text)
-            
-            # Determine sorting location
-            sorting = reader.determine_sorting_location(med_info['medication_name'])
-            
-            # Try to match to database
-            db_medication = reader.match_to_database(med_info['medication_name'])
-            
-            result = {
-                'success': True,
-                'raw_text': raw_text,
-                'medication_name': med_info['medication_name'],
-                'dosage': med_info['dosage'],
-                'quantity': med_info['quantity'],
-                'ndc_code': med_info['ndc_code'],
-                'expiration_date': med_info['expiration_date'],
-                'confidence': med_info['confidence'],
-                'sorting': sorting,
-                'database_match': None
-            }
-            
-            if db_medication:
-                result['database_match'] = {
-                    'id': db_medication.id,
-                    'name': db_medication.name,
-                    'current_quantity': db_medication.current_quantity,
-                    'exists_in_system': True
-                }
-            
-            # Clean up
-            default_storage.delete(image_path)
+            try:
+                # Initialize reader
+                reader = PillBottleReader()
+                
+                # Process image
+                result = reader.process_bottle_image(temp_path)
+                
+            finally:
+                # ALWAYS delete the temporary file
+                try:
+                    os.remove(temp_path)
+                    print(f"Temporary image deleted: {temp_path}")
+                except Exception as e:
+                    print(f"Could not delete temp file: {e}")
             
             return JsonResponse(result)
             
         except Exception as e:
-            print(f"Error in read_pill_bottle: {e}")
+            print(f"ERROR in read_pill_bottle: {e}")
             import traceback
             traceback.print_exc()
+            
             return JsonResponse({
                 'success': False,
                 'error': str(e),
-                'message': 'An error occurred while reading the bottle'
+                'message': f'Error: {str(e)}'
             }, status=500)
     
     return JsonResponse({
