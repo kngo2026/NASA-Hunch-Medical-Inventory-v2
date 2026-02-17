@@ -64,6 +64,53 @@
         background: #45a049;
         transform: translateY(-2px);
     }
+    
+    .quantity-edit {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(255, 255, 255, 0.05);
+        padding: 8px;
+        border-radius: 6px;
+        margin-top: 10px;
+    }
+    
+    .quantity-edit input {
+        width: 80px;
+        padding: 6px;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(252, 61, 33, 0.5);
+        color: white;
+        border-radius: 4px;
+    }
+    
+    .quantity-edit button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+    }
+    
+    .btn-save-qty {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .btn-save-qty:hover {
+        background: #45a049;
+    }
+    
+    .btn-cancel-qty {
+        background: #666;
+        color: white;
+    }
+    
+    .btn-cancel-qty:hover {
+        background: #555;
+    }
 </style>
 {% endblock %}
 
@@ -82,7 +129,7 @@
             <input type="text" 
                    id="medicationSearch" 
                    class="search-input" 
-                   placeholder="🔍 Search medications by name, type, or location..."
+                   placeholder="Search medications by name, type, or location..."
                    autocomplete="off">
             <span class="search-icon">🔍</span>
         </div>
@@ -187,10 +234,7 @@
     });
 
     function filterMedications(query) {
-        const grid = document.getElementById('medicationGrid');
-        
         if (!query) {
-            // Show all
             renderMedications(allMedications);
             return;
         }
@@ -229,7 +273,7 @@
             }
 
             return `
-                <div class="medication-card">
+                <div class="medication-card" data-med-id="${med.id}">
                     ${med.pill_image ? `<img src="${med.pill_image}" class="medication-photo" onerror="this.style.display='none'">` : ''}
                     <div class="medication-info">
                         <div class="medication-name">${med.name}</div>
@@ -237,13 +281,23 @@
                         <div class="medication-details">
                             <div><strong>Type:</strong> ${med.medication_type_display || med.medication_type}</div>
                             <div><strong>Dosage:</strong> ${med.dosage}</div>
-                            <div><strong>Stock:</strong> ${med.current_quantity} / ${med.minimum_quantity} units</div>
+                            <div id="stock-display-${med.id}">
+                                <strong>Stock:</strong> ${med.current_quantity} / ${med.minimum_quantity} units
+                            </div>
                             <div><strong>Location:</strong> ${med.container_location}</div>
                             ${med.expiration_date ? `<div><strong>Expires:</strong> ${med.expiration_date}</div>` : ''}
                         </div>
                         <span class="stock-status ${stockClass}">${stockText}</span>
+                        
+                        <!-- Quantity Editor (initially hidden) -->
+                        <div class="quantity-edit" id="qty-edit-${med.id}" style="display: none;">
+                            <input type="number" id="qty-input-${med.id}" value="${med.current_quantity}" min="0">
+                            <button class="btn-save-qty" onclick="saveQuantity(${med.id})">Save</button>
+                            <button class="btn-cancel-qty" onclick="cancelQuantityEdit(${med.id})">Cancel</button>
+                        </div>
+                        
                         <div class="card-actions">
-                            <button class="btn btn-secondary" onclick="editMedication(${med.id})">Edit</button>
+                            <button class="btn btn-secondary" onclick="editQuantity(${med.id})">Edit Qty</button>
                             <button class="btn btn-secondary" onclick="updateImage(${med.id})">Update Image</button>
                             <button class="btn btn-secondary" onclick="deleteMedication(${med.id})">Delete</button>
                         </div>
@@ -251,6 +305,54 @@
                 </div>
             `;
         }).join('');
+    }
+
+    function editQuantity(medId) {
+        document.getElementById(`qty-edit-${medId}`).style.display = 'inline-flex';
+    }
+
+    function cancelQuantityEdit(medId) {
+        document.getElementById(`qty-edit-${medId}`).style.display = 'none';
+        
+        // Reset input to original value
+        const med = allMedications.find(m => m.id === medId);
+        if (med) {
+            document.getElementById(`qty-input-${medId}`).value = med.current_quantity;
+        }
+    }
+
+    async function saveQuantity(medId) {
+        const newQuantity = parseInt(document.getElementById(`qty-input-${medId}`).value);
+        const reason = prompt('Reason for quantity change:', 'Manual adjustment');
+        
+        if (!reason) return;
+        
+        try {
+            const response = await fetch('/api/medications/update-quantity/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    medication_id: medId,
+                    quantity: newQuantity,
+                    reason: reason
+                })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showAlert('✓ Quantity updated successfully!', 'success');
+                document.getElementById(`qty-edit-${medId}`).style.display = 'none';
+                loadMedications();
+            } else {
+                showAlert('✗ Error: ' + (data.message || 'Failed to update quantity'), 'error');
+            }
+        } catch (error) {
+            showAlert('✗ Connection error: ' + error.message, 'error');
+        }
     }
 
     // CSV Export
@@ -344,10 +446,6 @@
             }
         };
         input.click();
-    }
-
-    function editMedication(medicationId) {
-        window.location.href = `/inventory/${medicationId}/`;
     }
 
     async function deleteMedication(medicationId) {

@@ -62,7 +62,7 @@ medical-inventory-/
 
 ## Documentation
 
-For detailed setup instructions, see the installation guide in the docs.
+This project uses Python 3.10.X
 
 ## NASA HUNCH Program
 
