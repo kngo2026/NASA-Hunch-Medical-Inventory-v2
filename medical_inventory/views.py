@@ -1497,6 +1497,8 @@ def add_astronaut(request):
             
             if face_encodings:
                 astronaut.face_encoding = pickle.dumps(face_encodings[0])
+                photo.seek(0)  # Rewind file pointer after face_recognition consumed it
+                astronaut.photo = photo  # Save the actual photo
                 astronaut.save()
                 
                 return JsonResponse({
@@ -1531,10 +1533,53 @@ def list_astronauts(request):
         'name': a.name,
         'astronaut_id': a.astronaut_id,
         'has_face_encoding': a.face_encoding is not None,
-        'photo_url': None  # We don't store photos, just encodings
+        'photo_url': a.photo.url if a.photo else None
     } for a in astronauts]
     
     return JsonResponse({'astronauts': data})
+
+
+@csrf_exempt
+def update_astronaut_face(request):
+    """Update astronaut face encoding"""
+    if request.method == 'POST':
+        try:
+            astronaut_id = request.POST.get('astronaut_id')
+            photo = request.FILES.get('photo')
+            
+            if not all([astronaut_id, photo]):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Astronaut ID and photo are required'
+                })
+            
+            astronaut = get_object_or_404(Astronaut, id=astronaut_id)
+            
+            # Process face encoding
+            image = face_recognition.load_image_file(photo)
+            face_encodings = face_recognition.face_encodings(image)
+            
+            if face_encodings:
+                astronaut.face_encoding = pickle.dumps(face_encodings[0])
+                astronaut.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Face encoding updated successfully'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No face detected in photo'
+                })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 @csrf_exempt

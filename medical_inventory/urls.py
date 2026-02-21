@@ -1,5 +1,10 @@
 from django.urls import path
+
+from nasa import settings
 from . import views
+
+from django.conf import settings
+from django.conf.urls.static import static
 
 app_name = 'medical_inventory'
 
@@ -56,4 +61,4 @@ urlpatterns = [
     path('api/medications/list/', views.list_medications, name='list_medications'),
     path('api/medications/update-image/', views.update_medication_image, name='update_medication_image'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
-]
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
