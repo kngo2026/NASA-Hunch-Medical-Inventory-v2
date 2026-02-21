@@ -1,4 +1,6 @@
 # views.py - Complete Medical Inventory System with Facial Recognition and Pill Recognition
+from unittest import result
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -2013,8 +2015,8 @@ class PillBottleReader:
             })
         
         # Get inventory location
-        if hasattr(medication, 'location') and medication.location:
-            result['inventory_location'] = medication.location
+        if hasattr(medication, 'container_location') and medication.container_location:
+            result['inventory_location'] = medication.container_location
         else:
             result['inventory_location'] = "Location not set in system"
         

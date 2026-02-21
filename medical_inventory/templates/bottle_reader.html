@@ -5,7 +5,6 @@
 
 {% block extra_css %}
 <style>
-    /* Match existing NASA theme */
     .page-header {
         text-align: center;
         padding: 40px 20px;
@@ -148,14 +147,8 @@
     }
 
     @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateY(20px);
-        }
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(20px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
     .result-card {
@@ -228,6 +221,7 @@
         font-weight: bold;
     }
 
+    /* ---- LOCATION CARD ---- */
     .location-card {
         background: rgba(252, 61, 33, 0.1);
         border: 2px solid #FC3D21;
@@ -235,11 +229,6 @@
         padding: 25px;
         margin-top: 20px;
         text-align: center;
-    }
-
-    .location-icon {
-        font-size: 3em;
-        margin-bottom: 10px;
     }
 
     .location-label {
@@ -252,12 +241,19 @@
     }
 
     .location-value {
-        font-size: 1.8em;
+        font-size: 2em;
         font-weight: bold;
         color: #FC3D21;
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
 
+    .location-subtext {
+        font-size: 0.95em;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 5px;
+    }
+
+    /* ---- NOT FOUND CARD ---- */
     .not-found-card {
         background: rgba(255, 193, 7, 0.1);
         border: 2px solid #FFC107;
@@ -317,26 +313,11 @@
     }
 
     @media (max-width: 768px) {
-        .main-card {
-            padding: 20px;
-        }
-
-        .result-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .match-details {
-            grid-template-columns: 1fr;
-        }
-
-        .action-buttons {
-            flex-direction: column;
-        }
-
-        .btn {
-            width: 100%;
-        }
+        .main-card { padding: 20px; }
+        .result-header { flex-direction: column; align-items: flex-start; }
+        .match-details { grid-template-columns: 1fr; }
+        .action-buttons { flex-direction: column; }
+        .btn { width: 100%; }
     }
 </style>
 {% endblock %}
@@ -353,12 +334,12 @@
             <div class="video-container">
                 <video id="videoElement" autoplay playsinline></video>
             </div>
-            
+
             <canvas id="canvas" class="canvas-container"></canvas>
 
             <div class="button-group">
                 <button id="startCamera" class="btn btn-primary">Start Camera</button>
-                <button id="captureBtn" class="btn btn-success" disabled>✓ Scan Bottle</button>
+                <button id="captureBtn" class="btn btn-success" disabled>Scan Bottle</button>
             </div>
 
             <div id="statusMessage" class="status-message info">
@@ -374,7 +355,7 @@
                 </div>
 
                 <div id="matchInfo" class="match-info" style="display: none;">
-                    <h3>✓ Found in Inventory!</h3>
+                    <h3>Found in Inventory!</h3>
                     <div class="match-details">
                         <div class="match-item">
                             <div class="match-label">Database Name</div>
@@ -395,11 +376,14 @@
                     </div>
                 </div>
 
-                <div id="locationCard" class="location-card">
-                    <div class="location-label">INVENTORY LOCATION</div>
-                    <div class="location-value" id="locationValue">Scanning...</div>
+                <!-- LOCATION CARD — shown when medication is found -->
+                <div id="locationCard" class="location-card" style="display: none;">
+                    <div class="location-label">Inventory Location</div>
+                    <div class="location-value" id="locationValue">—</div>
+                    <div class="location-subtext" id="locationSubtext"></div>
                 </div>
 
+                <!-- NOT FOUND CARD — shown when medication is not in system -->
                 <div id="notFoundCard" class="not-found-card" style="display: none;">
                     <h3>Medication Not in Inventory</h3>
                     <p>This medication was detected but is not in your system yet.</p>
@@ -415,9 +399,7 @@
             <div class="raw-text-section">
                 <details>
                     <summary>Show Raw OCR Text</summary>
-                    <div class="raw-text-content" id="rawText">
-                        No text detected yet
-                    </div>
+                    <div class="raw-text-content" id="rawText">No text detected yet</div>
                 </details>
             </div>
         </div>
@@ -427,7 +409,7 @@
 <script>
     let stream = null;
     let currentResult = null;
-    
+
     const video = document.getElementById('videoElement');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -443,17 +425,17 @@
 
     async function startCamera() {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: {
                     width: { ideal: 1920 },
                     height: { ideal: 1080 },
                     facingMode: 'environment'
-                } 
+                }
             });
             video.srcObject = stream;
             captureBtn.disabled = false;
             startBtn.disabled = true;
-            showStatus('Camera active. Focus on the medication NAME on the label and click "Scan Bottle"', 'info');
+            showStatus('Camera active. Focus on the medication label and click "Scan Bottle"', 'info');
         } catch (error) {
             showStatus('Error accessing camera: ' + error.message, 'error');
         }
@@ -463,31 +445,31 @@
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0);
-        
-        showStatus('Reading medication name...', 'info');
+
+        showStatus('Reading medication label...', 'info');
         captureBtn.disabled = true;
-        
+
         canvas.toBlob(async (blob) => {
             const formData = new FormData();
             formData.append('image', blob, 'bottle.jpg');
-            
+
             try {
                 const response = await fetch('/api/read-pill-bottle/', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     currentResult = data;
                     displayResults(data);
-                    showStatus('✓ Bottle successfully scanned!', 'success');
+                    showStatus('Bottle successfully scanned!', 'success');
                 } else {
                     showStatus(data.message || 'Could not read bottle label', 'error');
                     if (data.suggestions) {
                         let msg = data.message + '\n\nSuggestions:\n';
-                        data.suggestions.forEach(s => msg += '• ' + s + '\n');
+                        data.suggestions.forEach(s => msg += '- ' + s + '\n');
                         showStatus(msg, 'warning');
                     }
                     captureBtn.disabled = false;
@@ -500,105 +482,112 @@
     }
 
     function displayResults(data) {
-    resultsSection.classList.add('show');
-    
-    document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
-    document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
-    
-    const matchInfo = document.getElementById('matchInfo');
-    const locationCard = document.getElementById('locationCard');
-    const notFoundCard = document.getElementById('notFoundCard');
-    
-    if (data.database_match && data.database_match.exists_in_system) {
-        // FOUND IN DATABASE
-        matchInfo.style.display = 'block';
-        locationCard.style.display = 'block';
-        notFoundCard.style.display = 'none';
-        
-        document.getElementById('dbName').textContent = data.database_match.name;
-        document.getElementById('dbDosage').textContent = data.database_match.dosage || 'Not specified';
-        document.getElementById('dbQuantity').textContent = data.database_match.current_quantity + ' units';
-        document.getElementById('matchConfidence').textContent = `${data.database_match.match_confidence}%`;
-        
-        // DISPLAY LOCATION PROMINENTLY
-        const location = data.inventory_location || 'Location not set';
-        document.getElementById('locationValue').textContent = location;
-        
-        if (location === 'Location not set in system' || location === 'Location not set') {
-            document.getElementById('locationSubtext').textContent = 'Please set location in inventory system';
-            document.getElementById('locationValue').style.color = '#FFC107';
+        resultsSection.classList.add('show');
+
+        document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
+        document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
+
+        const matchInfo = document.getElementById('matchInfo');
+        const locationCard = document.getElementById('locationCard');
+        const notFoundCard = document.getElementById('notFoundCard');
+        const locationValue = document.getElementById('locationValue');
+        const locationSubtext = document.getElementById('locationSubtext');
+
+        if (data.database_match && data.database_match.exists_in_system) {
+            // Found in database
+            matchInfo.style.display = 'block';
+            locationCard.style.display = 'block';
+            notFoundCard.style.display = 'none';
+
+            document.getElementById('dbName').textContent = data.database_match.name;
+            document.getElementById('dbDosage').textContent = data.database_match.dosage || 'Not specified';
+            document.getElementById('dbQuantity').textContent = data.database_match.current_quantity + ' units';
+            document.getElementById('matchConfidence').textContent = `${data.database_match.match_confidence}%`;
+
+            // Display location
+            const location = data.inventory_location || 'Location not set';
+            locationValue.textContent = location;
+
+            if (location === 'Location not set in system' || location === 'Location not set') {
+                locationSubtext.textContent = 'Please set a location in the inventory system';
+                locationValue.style.color = '#FFC107';
+                locationCard.style.borderColor = '#FFC107';
+                locationCard.style.background = 'rgba(255, 193, 7, 0.1)';
+            } else {
+                locationSubtext.textContent = `Go to this location to retrieve ${data.medication_name}`;
+                locationValue.style.color = '#FC3D21';
+                locationCard.style.borderColor = '#FC3D21';
+                locationCard.style.background = 'rgba(252, 61, 33, 0.1)';
+            }
+
+            // Unlock status
+            if (data.unlock_status === true) {
+                showStatus('Container unlocked! You have 30 seconds to retrieve medication.', 'success');
+            }
+
+            document.getElementById('addToInventory').style.display = 'none';
+
         } else {
-            document.getElementById('locationSubtext').textContent = `Go to this location to find ${data.medication_name}`;
-            document.getElementById('locationValue').style.color = '#FC3D21';
+            // Not found in database
+            matchInfo.style.display = 'none';
+            locationCard.style.display = 'none';
+            notFoundCard.style.display = 'block';
+
+            document.getElementById('detectedName').textContent = data.medication_name || 'Unknown';
+            document.getElementById('addToInventory').style.display = 'inline-block';
         }
-        
-        // SHOW UNLOCK STATUS
-        if (data.unlock_status === true) {
-            showStatus('Container unlocked! You have 30 seconds to retrieve medication.', 'success');
-        } else if (data.unlock_status === false && data.unlock_message) {
-            showStatus(data.unlock_message, 'warning');
+
+        // Raw OCR text
+        if (data.raw_text) {
+            document.getElementById('rawText').textContent = data.raw_text;
         }
-        
-    } else {
-        // NOT FOUND IN DATABASE
-        matchInfo.style.display = 'none';
-        locationCard.style.display = 'none';
-        notFoundCard.style.display = 'block';
-        
-        document.getElementById('detectedName').textContent = data.medication_name;
-        
-        showStatus('Medication not in database - container remains locked', 'warning');
     }
-    
-    // Raw text
-    document.getElementById('rawText').textContent = data.raw_text || 'No text extracted';
-}
 
     function showStatus(message, type) {
         statusMessage.textContent = message;
-        statusMessage.className = 'status-message ' + type;
+        statusMessage.className = `status-message ${type}`;
     }
 
     function resetScanner() {
         resultsSection.classList.remove('show');
         captureBtn.disabled = false;
         currentResult = null;
-        showStatus('Ready to scan another bottle', 'info');
+        showStatus('Camera active. Focus on the medication label and click "Scan Bottle"', 'info');
+
+        // Reset location card styles
+        const locationCard = document.getElementById('locationCard');
+        locationCard.style.display = 'none';
+        locationCard.style.borderColor = '#FC3D21';
+        locationCard.style.background = 'rgba(252, 61, 33, 0.1)';
+        document.getElementById('locationValue').style.color = '#FC3D21';
     }
 
     async function addToInventory() {
         if (!currentResult) return;
-        
+
         try {
             const response = await fetch('/api/add-bottle-to-inventory/', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     medication_name: currentResult.medication_name,
                     dosage: currentResult.dosage,
+                    ndc_code: currentResult.ndc_code,
                     quantity: 0
                 })
             });
-            
+
             const data = await response.json();
-            
+
             if (data.success) {
-                showStatus('✓ Medication added to inventory!', 'success');
-                setTimeout(resetScanner, 2000);
+                showStatus('Medication added to inventory successfully!', 'success');
+                document.getElementById('addToInventory').style.display = 'none';
             } else {
-                showStatus('Error adding to inventory: ' + (data.error || 'Unknown error'), 'error');
+                showStatus('Error adding medication: ' + (data.error || 'Unknown error'), 'error');
             }
         } catch (error) {
-            showStatus('Error: ' + error.message, 'error');
+            showStatus('Error adding medication: ' + error.message, 'error');
         }
     }
-
-    window.addEventListener('beforeunload', () => {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-    });
 </script>
 {% endblock %}
