@@ -13,6 +13,7 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from PIL import Image
+import PIL.Image
 from difflib import SequenceMatcher
 import re
 from django.core.files.storage import default_storage
@@ -81,7 +82,11 @@ def authenticate_face(request):
         try:
             image_file = request.FILES['image']
             image = face_recognition.load_image_file(image_file)
-
+            pil_img = PIL.Image.fromarray(image)
+            if pil_img.width > 640:
+                scale = 640 / pil_img.width
+                pil_img = pil_img.resize((640, int(pil_img.height * scale)))
+                image = np.array(pil_img)
             # CNN is more accurate than HOG (slower but worth it for auth)
             face_locations = face_recognition.face_locations(image, model="cnn")
 
@@ -99,11 +104,8 @@ def authenticate_face(request):
                     'success': False,
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
-
-            # Use num_jitters=5 — encodes the face 5 times with slight variations
-            # and averages the result, making the encoding much more accurate
             face_encodings = face_recognition.face_encodings(
-                image, face_locations, num_jitters=5
+                image, face_locations, num_jitters=1
             )
 
             if not face_encodings:
