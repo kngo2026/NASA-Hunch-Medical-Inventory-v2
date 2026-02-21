@@ -17553,3 +17553,128 @@ Watching for file changes with StatReloader
 "POST /api/read-pill-bottle/ HTTP/1.1" 200 809
 "POST /api/read-pill-bottle/ HTTP/1.1" 200 728
 "POST /api/read-pill-bottle/ HTTP/1.1" 200 1265
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 1026
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 750
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 763
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 896
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 61
+"GET /medication-selection/36/ HTTP/1.1" 200 18580
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 819
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 801
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 779
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 828
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18587
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18587
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18587
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 926
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"POST /api/checkout/ HTTP/1.1" 200 73
+"GET / HTTP/1.1" 200 2632
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+Internal Server Error: /api/checkout/
+"POST /api/checkout/ HTTP/1.1" 500 73
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"POST /api/checkout/ HTTP/1.1" 200 72
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 816
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /bottle-reader/ HTTP/1.1" 200 20263
+"POST /api/read-pill-bottle/ HTTP/1.1" 200 879

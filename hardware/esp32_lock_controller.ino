@@ -6,8 +6,8 @@
 // ============================================================================
 
 // WiFi credentials
-const char* ssid = "FiOS-F6NV0";           // Your WiFi name
-const char* password = "wit4108shape889tux";      // Your WiFi password
+const char* ssid = "Daniel's S25+";           // Your WiFi name
+const char* password = "sigmarizzlee10";      // Your WiFi password
 
 // Hardware pins
 const int LOCK_PIN = 2;                      // Pin connected to relay/solenoid

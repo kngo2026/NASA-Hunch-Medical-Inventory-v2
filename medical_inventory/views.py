@@ -31,7 +31,8 @@ import io
 import base64
 import os
 from datetime import timedelta
-
+import serial
+import serial.tools.list_ports
 
 # Import for deep learning model (TensorFlow/Keras)
 try:
@@ -50,7 +51,7 @@ if os.name == 'nt':
 from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
 from .forms import MedicationForm
 # Configuration
-ESP32_IP = "192.168.1.100"
+ESP32_IP = getattr(settings, 'ESP32_IP_ADDRESS', '')
 
 
 # ============================================================================
@@ -69,17 +70,25 @@ def lockscreen(request):
 
 @csrf_exempt
 def authenticate_face(request):
-    """Single image capture face authentication"""
+    """
+    Improved face authentication using face_distance for better accuracy.
+    - Uses CNN model for better detection
+    - Picks the BEST match by distance, not just the first match
+    - Stricter tolerance (0.45 instead of 0.6)
+    - Requires a confidence gap so it won't misidentify similar faces
+    """
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES['image']
-            
-            # Load image with face_recognition
             image = face_recognition.load_image_file(image_file)
-            
-            # Find faces in the uploaded image
-            face_locations = face_recognition.face_locations(image, model="hog")
-            
+
+            # CNN is more accurate than HOG (slower but worth it for auth)
+            face_locations = face_recognition.face_locations(image, model="cnn")
+
+            # Fallback to HOG if CNN finds nothing (e.g. bad lighting/angle)
+            if not face_locations:
+                face_locations = face_recognition.face_locations(image, model="hog")
+
             if not face_locations:
                 SystemLog.objects.create(
                     event_type='AUTH_FAILURE',
@@ -88,62 +97,113 @@ def authenticate_face(request):
                 )
                 return JsonResponse({
                     'success': False,
-                    'message': 'No face detected. Please ensure your face is clearly visible.'
+                    'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
-            
-            # Get face encodings
-            face_encodings = face_recognition.face_encodings(image, face_locations)
-            
+
+            # Use num_jitters=5 — encodes the face 5 times with slight variations
+            # and averages the result, making the encoding much more accurate
+            face_encodings = face_recognition.face_encodings(
+                image, face_locations, num_jitters=5
+            )
+
             if not face_encodings:
                 return JsonResponse({
                     'success': False,
                     'message': 'Could not process face. Please try again.'
                 })
-            
-            # Load known faces from database
-            astronauts = Astronaut.objects.exclude(face_encoding__isnull=True)
-            
+
+            # Load all known faces from database
+            astronauts = list(Astronaut.objects.exclude(face_encoding__isnull=True))
+
+            if not astronauts:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No registered users found in the system.'
+                })
+
+            # Build list of known encodings
+            known_encodings = []
+            for astronaut in astronauts:
+                known_encodings.append(pickle.loads(astronaut.face_encoding))
+
+            # Check each detected face
             for face_encoding in face_encodings:
-                for astronaut in astronauts:
-                    known_encoding = pickle.loads(astronaut.face_encoding)
-                    
-                    # Compare faces
-                    matches = face_recognition.compare_faces([known_encoding], face_encoding, tolerance=0.6)
-                    
-                    if matches[0]:
-                        # Face recognized!
+                # Get distance to every known face (lower = more similar)
+                distances = face_recognition.face_distance(known_encodings, face_encoding)
+
+                best_index = int(distances.argmin())
+                best_distance = distances[best_index]
+
+                print(f"Best match: {astronauts[best_index].name}, distance: {best_distance:.4f}")
+                print(f"All distances: {[(astronauts[i].name, round(d, 4)) for i, d in enumerate(distances)]}")
+
+                # Strict threshold — 0.45 means faces must be very similar
+                # (0.6 is the default but causes misidentification)
+                THRESHOLD = 0.45
+
+                if best_distance > THRESHOLD:
+                    SystemLog.objects.create(
+                        event_type='AUTH_FAILURE',
+                        description=f"Face not recognized (best distance: {best_distance:.4f})",
+                        ip_address=request.META.get('REMOTE_ADDR')
+                    )
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Face not recognized. Please try again or re-register your face.'
+                    })
+
+                # Make sure the best match is clearly better than the second best
+                # This prevents misidentifying someone who looks similar to a registered user
+                if len(distances) > 1:
+                    sorted_distances = sorted(distances)
+                    best = sorted_distances[0]
+                    second_best = sorted_distances[1]
+                    confidence_gap = second_best - best
+
+                    # If the top two matches are too close together, reject
+                    if confidence_gap < 0.08:
+                        print(f"Ambiguous match — gap too small: {confidence_gap:.4f}")
                         SystemLog.objects.create(
-                            event_type='AUTH_SUCCESS',
-                            astronaut=astronaut,
-                            description=f"Astronaut {astronaut.name} successfully authenticated",
+                            event_type='AUTH_FAILURE',
+                            description=f"Ambiguous face match (gap: {confidence_gap:.4f})",
                             ip_address=request.META.get('REMOTE_ADDR')
                         )
-                        
                         return JsonResponse({
-                            'success': True,
-                            'astronaut_id': astronaut.id,
-                            'astronaut_name': astronaut.name
+                            'success': False,
+                            'message': 'Could not confidently identify face. Please try again.'
                         })
-            
-            # No match found
-            SystemLog.objects.create(
-                event_type='AUTH_FAILURE',
-                description="Face not recognized - unknown individual",
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-            
+
+                # Matched successfully
+                astronaut = astronauts[best_index]
+                confidence = round((1 - best_distance) * 100, 1)
+
+                SystemLog.objects.create(
+                    event_type='AUTH_SUCCESS',
+                    astronaut=astronaut,
+                    description=f"Face authenticated: {astronaut.name} (confidence: {confidence}%, distance: {best_distance:.4f})",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'astronaut_id': astronaut.id,
+                    'astronaut_name': astronaut.name,
+                    'confidence': confidence,
+                    'message': f'Welcome, {astronaut.name}!'
+                })
+
             return JsonResponse({
                 'success': False,
-                'message': 'Face not recognized. Please ensure you are an authorized user.'
+                'message': 'Face not recognized. Please try again.'
             })
-            
+
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'message': f'Authentication error: {str(e)}'
+                'message': str(e)
             })
-    
-    return JsonResponse({'error': 'Invalid request - image required'}, status=400)
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
 # ============================================================================
@@ -222,19 +282,8 @@ def checkout_medication(request):
 
 
 def unlock_container(astronaut):
-    """Send unlock signal to ESP32"""
-    try:
-        url = f"http://{ESP32_IP}/unlock"
-        payload = {
-            'astronaut_id': astronaut.astronaut_id,
-            'timestamp': timezone.now().isoformat()
-        }
-        response = requests.post(url, json=payload, timeout=5)
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        print(f"Error unlocking container: {e}")
-        return False
-
+    """Called after face recognition"""
+    return _send_esp32_unlock(astronaut.name, {'user_id': str(astronaut.id)})
 
 # ============================================================================
 # INVENTORY VIEWS
@@ -819,7 +868,35 @@ def export_medications_csv(request):
 # ============================================================================
 # IN-SITE PHOTO CAPTURE FOR ASTRONAUTS
 # ============================================================================
+def _send_esp32_unlock(username, extra_payload=None):
+    """
+    Master unlock function used by ALL unlock paths.
+    Tries WiFi first if IP is set, falls back to Serial.
+    """
+    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '')
 
+    if esp32_ip:
+        try:
+            payload = {
+                'username': username,
+                'timestamp': timezone.now().isoformat(),
+                'source': 'django'
+            }
+            if extra_payload:
+                payload.update(extra_payload)
+
+            response = requests.post(
+                f'http://{esp32_ip}/unlock',
+                json=payload,
+                timeout=5
+            )
+            if response.status_code == 200:
+                print(f"ESP32 unlocked via WiFi for: {username}")
+                return True
+        except requests.exceptions.RequestException as e:
+            print(f"WiFi unlock failed: {e} — trying Serial...")
+
+    return send_esp32_unlock_serial(username)
 @login_required
 @user_passes_test(lambda u: u.is_staff or u.is_superuser)
 def capture_astronaut_photo(request):
@@ -927,34 +1004,13 @@ def capture_astronaut_photo(request):
 # ============================================================================
 
 def send_esp32_unlock():
-    """Send unlock command to ESP32 via HTTP"""
-    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '192.168.1.100')
-    
-    try:
-        # Send unlock request to ESP32
-        response = requests.post(
-            f'http://{esp32_ip}/unlock',
-            json={
-                'timestamp': timezone.now().isoformat(),
-                'source': 'django_server'
-            },
-            timeout=5
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('success', False)
-        else:
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"Error communicating with ESP32: {e}")
-        return False
+    """Called by emergency access"""
+    return _send_esp32_unlock('Emergency Access')
 
 
 def check_esp32_status():
     """Check if ESP32 is online and get status"""
-    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '192.168.1.100')
+    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '')
     
     try:
         response = requests.get(f'http://{esp32_ip}/status', timeout=3)
@@ -2104,34 +2160,67 @@ def read_pill_bottle(request):
         'message': 'POST request with image file required',
         'unlock_status': False
     }, status=400)
-def send_esp32_unlock_for_bottle(medication_name):
-    """Send unlock command to ESP32 after bottle detection"""
-    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '192.168.1.53')
-    
-    try:
-        # Send unlock request to ESP32
-        response = requests.post(
-            f'http://{esp32_ip}/unlock',
-            json={
-                'username': 'Bottle Scanner',
-                'user_id': 'bottle_scan',
-                'medication': medication_name,
-                'timestamp': timezone.now().isoformat(),
-                'source': 'bottle_reader'
-            },
-            timeout=5
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('success', False)
-        else:
-            print(f"ESP32 returned status code: {response.status_code}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"Error communicating with ESP32: {e}")
+def find_esp32_serial_port():
+    """Auto-detect the ESP32 USB serial port"""
+    import serial.tools.list_ports
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if any(keyword in port.description.upper() for keyword in
+               ['CP210', 'CH340', 'UART', 'USB SERIAL', 'ESP']):
+            return port.device
+    ports = list(ports)
+    if ports:
+        return ports[0].device
+    return None
+
+
+def send_esp32_unlock_serial(username):
+    """Send unlock command to ESP32 via USB Serial"""
+    import serial
+    import time
+
+    port = getattr(settings, 'ESP32_SERIAL_PORT', None) or find_esp32_serial_port()
+
+    if not port:
+        print("No serial port found for ESP32")
         return False
+
+    try:
+        command = json.dumps({
+            "action": "unlock",
+            "username": username,
+            "source": "django"
+        }) + "\n"
+
+        with serial.Serial() as ser:
+            ser.port = port
+            ser.baudrate = getattr(settings, 'ESP32_BAUD_RATE', 115200)
+            ser.timeout = 3
+            ser.dtr = False  # Prevent ESP32 reset when port opens
+            ser.rts = False
+            ser.open()
+
+            time.sleep(0.5)
+            ser.reset_input_buffer()
+            ser.write(command.encode('utf-8'))
+
+            response = ser.readline().decode('utf-8', errors='ignore').strip()
+            print(f"ESP32 Serial response: {response}")
+
+            try:
+                data = json.loads(response)
+                return data.get('success', True)
+            except json.JSONDecodeError:
+                # Echo or garbled — command was still sent and lock unlocked
+                return True
+
+    except Exception as e:
+        print(f"Serial error: {e}")
+        return False
+
+def send_esp32_unlock_for_bottle(medication_name):
+    """Called by bottle reader"""
+    return _send_esp32_unlock('Bottle Scanner', {'medication': medication_name})
 
 
 @csrf_exempt  
