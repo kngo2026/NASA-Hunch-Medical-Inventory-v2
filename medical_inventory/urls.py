@@ -61,4 +61,7 @@ urlpatterns = [
     path('api/medications/list/', views.list_medications, name='list_medications'),
     path('api/medications/update-image/', views.update_medication_image, name='update_medication_image'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
+    
+    path('inventory/graph/', views.medication_inventory_graph, name='inventory_graph'),
+    path('api/medications/history/', views.medication_history_api, name='medication_history_api'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
