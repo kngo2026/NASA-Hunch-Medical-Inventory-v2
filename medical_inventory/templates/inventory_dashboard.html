@@ -5,6 +5,277 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/inventory.css' %}">
+<style>
+    /* Add button */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid rgba(252, 61, 33, 0.3);
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .section-header h2 {
+        color: #FC3D21;
+        font-size: clamp(1.5rem, 3vw, 1.8rem);
+        margin: 0;
+        border: none;
+        padding: 0;
+    }
+
+    .btn-add {
+        background: #FC3D21;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn-add:hover {
+        background: #d93419;
+        transform: translateY(-2px);
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+    }
+
+    .modal-overlay.show {
+        display: flex;
+    }
+
+    .modal {
+        background: #0f1535;
+        border: 1px solid rgba(252, 61, 33, 0.4);
+        border-radius: 16px;
+        padding: 35px;
+        width: 100%;
+        max-width: 580px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+    }
+
+    .modal h2 {
+        color: #FC3D21;
+        margin-bottom: 25px;
+        font-size: 1.6rem;
+    }
+
+    .modal-close {
+        position: absolute;
+        top: 15px;
+        right: 20px;
+        background: none;
+        border: none;
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 1.8rem;
+        cursor: pointer;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+
+    .modal-close:hover {
+        color: #FC3D21;
+    }
+
+    /* Form inside modal */
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-group input,
+    .form-group select {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: white;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        transition: border-color 0.2s;
+        width: 100%;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #FC3D21;
+    }
+
+    .form-group select option {
+        background: #0f1535;
+        color: white;
+    }
+
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 25px;
+        justify-content: flex-end;
+    }
+
+    .btn-cancel-modal {
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel-modal:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    .btn-submit-modal {
+        background: #FC3D21;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-submit-modal:hover {
+        background: #d93419;
+    }
+
+    /* Alert inside modal */
+    .modal-alert {
+        padding: 10px 16px;
+        border-radius: 8px;
+        margin-bottom: 18px;
+        font-size: 0.9rem;
+        display: none;
+    }
+
+    .modal-alert.success {
+        background: rgba(76, 175, 80, 0.2);
+        border: 1px solid #4CAF50;
+        color: #4CAF50;
+        display: block;
+    }
+
+    .modal-alert.error {
+        background: rgba(244, 67, 54, 0.2);
+        border: 1px solid #F44336;
+        color: #F44336;
+        display: block;
+    }
+
+    /* Search and filter inputs */
+    .search-filter input,
+    .search-filter select {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        color: white;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+    }
+
+    .search-filter input::placeholder {
+        color: rgba(255, 255, 255, 0.35);
+    }
+
+    .search-filter select option {
+        background: #0f1535;
+    }
+
+    /* Page header */
+    .page-header {
+        text-align: center;
+        padding: 40px 20px 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header h1 {
+        font-size: clamp(2rem, 5vw, 3rem);
+        background: linear-gradient(135deg, #FC3D21, #ff6b4a);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .btn-restock {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 5px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        margin-left: 6px;
+    }
+
+    .btn-restock:hover {
+        background: #388e3c;
+    }
+
+    .restock-current {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+        margin-top: 6px;
+    }
+
+    .restock-current span {
+        color: #FC3D21;
+        font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-group.full-width {
+            grid-column: 1;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -13,6 +284,8 @@
 </div>
 
 <div class="container">
+
+    <!-- Stats -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-label">Total Medications</div>
@@ -28,9 +301,13 @@
         </div>
     </div>
 
+    <!-- Inventory Table -->
     <div class="section">
-        <h2>Complete Inventory</h2>
-        
+        <div class="section-header">
+            <h2>Complete Inventory</h2>
+            <button class="btn-add" onclick="openAddModal()">+ Add Medication</button>
+        </div>
+
         <div class="search-filter">
             <input type="text" id="searchInput" placeholder="Search medications..." onkeyup="filterTable()">
             <select id="typeFilter" onchange="filterTable()">
@@ -66,7 +343,7 @@
             </thead>
             <tbody>
                 {% for medication in medications %}
-                <tr data-type="{{ medication.medication_type }}" 
+                <tr data-type="{{ medication.medication_type }}"
                     data-status="{% if medication.current_quantity > 10 %}good{% elif medication.current_quantity > 0 %}low{% else %}out{% endif %}">
                     <td><strong>{{ medication.name }}</strong></td>
                     <td>{{ medication.get_medication_type_display }}</td>
@@ -75,18 +352,29 @@
                     <td>{{ medication.minimum_quantity }}</td>
                     <td>
                         {% if medication.current_quantity > 10 %}
-                        <span class="status-badge status-good">In Stock</span>
+                            <span class="status-badge status-good">In Stock</span>
                         {% elif medication.current_quantity > 0 %}
-                        <span class="status-badge status-low">Low Stock</span>
+                            <span class="status-badge status-low">Low Stock</span>
                         {% else %}
-                        <span class="status-badge status-out">Out of Stock</span>
+                            <span class="status-badge status-out">Out of Stock</span>
                         {% endif %}
                     </td>
                     <td>{{ medication.container_location }}</td>
                     <td>
-                        <button class="view-detail-btn" onclick="window.location.href='/inventory/{{ medication.id }}/'">
+                        <button class="view-detail-btn"
+                            onclick="window.location.href='{% url 'medical_inventory:medication_detail' medication.id %}'">
                             View Details
                         </button>
+                        <button class="btn-restock"
+                            onclick="openRestockModal({{ medication.id }}, '{{ medication.name }}', {{ medication.current_quantity }})">
+                            + Restock
+                        </button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" style="text-align: center; color: rgba(255,255,255,0.4); padding: 30px;">
+                        No medications in inventory yet. Click "Add Medication" to get started.
                     </td>
                 </tr>
                 {% endfor %}
@@ -94,29 +382,258 @@
         </table>
     </div>
 </div>
+
+<!-- Add Medication Modal -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        <h2>Add Medication</h2>
+
+        <div class="modal-alert" id="modalAlert"></div>
+
+        <form id="addMedicationForm" method="post" action="{% url 'medical_inventory:add_medication' %}">
+            {% csrf_token %}
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Medication Name *</label>
+                    <input type="text" name="name" placeholder="e.g. Ibuprofen" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Type *</label>
+                    <select name="medication_type" required>
+                        <option value="">Select type...</option>
+                        <option value="ANALGESIC">Pain Relief</option>
+                        <option value="ANTIBIOTIC">Antibiotic</option>
+                        <option value="ANTINAUSEA">Anti-Nausea</option>
+                        <option value="SLEEP_AID">Sleep Aid</option>
+                        <option value="ALLERGY">Allergy</option>
+                        <option value="STIMULANT">Stimulant</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Dosage *</label>
+                    <input type="text" name="dosage" placeholder="e.g. 200mg" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Current Quantity *</label>
+                    <input type="number" name="current_quantity" min="0" placeholder="0" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Minimum Quantity *</label>
+                    <input type="number" name="minimum_quantity" min="0" placeholder="10" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Container Location *</label>
+                    <input type="text" name="container_location" placeholder="e.g. Cabinet A-1" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Expiration Date</label>
+                    <input type="date" name="expiration_date">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel-modal" onclick="closeAddModal()">Cancel</button>
+                <button type="submit" class="btn-submit-modal">Add Medication</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Restock Modal -->
+<div class="modal-overlay" id="restockModal">
+    <div class="modal" style="max-width: 420px;">
+        <button class="modal-close" onclick="closeRestockModal()">&times;</button>
+        <h2>Restock Medication</h2>
+
+        <div class="modal-alert" id="restockAlert"></div>
+
+        <div class="form-group full-width" style="margin-bottom: 20px;">
+            <label>Medication</label>
+            <div id="restockMedName" style="font-size: 1.1rem; font-weight: bold; color: white; padding: 10px 14px; background: rgba(255,255,255,0.07); border-radius: 8px;">—</div>
+            <div class="restock-current">Current stock: <span id="restockCurrentQty">—</span> units</div>
+        </div>
+
+        <form id="restockForm">
+            {% csrf_token %}
+            <input type="hidden" id="restockMedId" name="medication_id">
+
+            <div class="form-grid" style="grid-template-columns: 1fr;">
+                <div class="form-group">
+                    <label>Units to Add *</label>
+                    <input type="number" id="restockQty" name="quantity" min="1" placeholder="e.g. 50" required>
+                </div>
+
+                <div class="form-group">
+                    <label>New Expiration Date (optional)</label>
+                    <input type="date" id="restockExpiry" name="expiration_date">
+                </div>
+
+                <div class="form-group">
+                    <label>Notes</label>
+                    <input type="text" id="restockNotes" name="notes" placeholder="e.g. Batch #1234">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel-modal" onclick="closeRestockModal()">Cancel</button>
+                <button type="submit" class="btn-submit-modal" style="background: #4CAF50;">Confirm Restock</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_script %}
 <script>
-    function filterTable() {
-        const searchInput = document.getElementById('searchInput').value.toLowerCase();
-        const typeFilter = document.getElementById('typeFilter').value;
-        const statusFilter = document.getElementById('statusFilter').value;
-        const table = document.getElementById('inventoryTable');
-        const rows = table.getElementsByTagName('tr');
+    // ---- Modal ----
+    function openAddModal() {
+        document.getElementById('addModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
 
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            const name = row.cells[0].textContent.toLowerCase();
-            const type = row.getAttribute('data-type');
-            const status = row.getAttribute('data-status');
+    function closeAddModal() {
+        document.getElementById('addModal').classList.remove('show');
+        document.body.style.overflow = '';
+        document.getElementById('modalAlert').className = 'modal-alert';
+        document.getElementById('modalAlert').textContent = '';
+        document.getElementById('addMedicationForm').reset();
+    }
 
-            const matchesSearch = name.includes(searchInput);
-            const matchesType = !typeFilter || type === typeFilter;
-            const matchesStatus = !statusFilter || status === statusFilter;
+    // Close modal when clicking outside
+    document.getElementById('addModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAddModal();
+    });
 
-            row.style.display = (matchesSearch && matchesType && matchesStatus) ? '' : 'none';
+    // Submit form via AJAX so page doesn't reload
+    document.getElementById('addMedicationForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const alert = document.getElementById('modalAlert');
+        const btn = this.querySelector('.btn-submit-modal');
+
+        btn.textContent = 'Adding...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(this.action, {
+                method: 'POST',
+                body: new FormData(this),
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            // add_medication redirects on success — if we get a redirect it worked
+            if (response.redirected || response.ok) {
+                alert.className = 'modal-alert success';
+                alert.textContent = 'Medication added successfully! Refreshing...';
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                alert.className = 'modal-alert error';
+                alert.textContent = 'Failed to add medication. Please check all fields.';
+                btn.textContent = 'Add Medication';
+                btn.disabled = false;
+            }
+        } catch (error) {
+            alert.className = 'modal-alert error';
+            alert.textContent = 'Connection error. Please try again.';
+            btn.textContent = 'Add Medication';
+            btn.disabled = false;
         }
+    });
+
+    // ---- Restock Modal ----
+    function openRestockModal(id, name, currentQty) {
+        document.getElementById('restockMedId').value = id;
+        document.getElementById('restockMedName').textContent = name;
+        document.getElementById('restockCurrentQty').textContent = currentQty;
+        document.getElementById('restockQty').value = '';
+        document.getElementById('restockExpiry').value = '';
+        document.getElementById('restockNotes').value = '';
+        document.getElementById('restockAlert').className = 'modal-alert';
+        document.getElementById('restockAlert').textContent = '';
+        document.getElementById('restockModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeRestockModal() {
+        document.getElementById('restockModal').classList.remove('show');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('restockModal').addEventListener('click', function(e) {
+        if (e.target === this) closeRestockModal();
+    });
+
+    document.getElementById('restockForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const alert = document.getElementById('restockAlert');
+        const btn = this.querySelector('.btn-submit-modal');
+
+        btn.textContent = 'Restocking...';
+        btn.disabled = true;
+
+        const payload = {
+            medication_id: document.getElementById('restockMedId').value,
+            quantity: parseInt(document.getElementById('restockQty').value),
+            expiration_date: document.getElementById('restockExpiry').value || null,
+            notes: document.getElementById('restockNotes').value
+        };
+
+        try {
+            const response = await fetch("{% url 'medical_inventory:restock_medication' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                alert.className = 'modal-alert success';
+                alert.textContent = `Restocked! New quantity: ${data.new_quantity} units. Refreshing...`;
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                alert.className = 'modal-alert error';
+                alert.textContent = data.message || 'Restock failed. Please try again.';
+                btn.textContent = 'Confirm Restock';
+                btn.disabled = false;
+            }
+        } catch (error) {
+            alert.className = 'modal-alert error';
+            alert.textContent = 'Connection error. Please try again.';
+            btn.textContent = 'Confirm Restock';
+            btn.disabled = false;
+        }
+    });
+
+    // ---- Table filter ----
+    function filterTable() {
+        const search = document.getElementById('searchInput').value.toLowerCase();
+        const type = document.getElementById('typeFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const rows = document.querySelectorAll('#inventoryTable tbody tr');
+
+        rows.forEach(row => {
+            if (!row.cells[0]) return;
+            const name = row.cells[0].textContent.toLowerCase();
+            const rowType = row.getAttribute('data-type');
+            const rowStatus = row.getAttribute('data-status');
+
+            const matchSearch = name.includes(search);
+            const matchType = !type || rowType === type;
+            const matchStatus = !status || rowStatus === status;
+
+            row.style.display = (matchSearch && matchType && matchStatus) ? '' : 'none';
+        });
     }
 </script>
 {% endblock %}

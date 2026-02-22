@@ -24,8 +24,8 @@ urlpatterns = [
     path('api/add-bottle-to-inventory/', views.add_bottle_to_inventory, name='add_bottle_to_inventory'),
     
     # Admin Management Pages
+    path('api/medications/restock/', views.restock_medication, name='restock_medication'),
     path('manage/astronauts/', views.manage_astronauts, name='manage_astronauts'),
-    path('manage/medications/', views.manage_medications, name='manage_medications'),
     
     # NEW: Warning System
     path('warnings/', views.warning_log_view, name='warning_log'),

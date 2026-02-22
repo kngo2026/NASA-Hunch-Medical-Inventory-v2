@@ -17737,3 +17737,43 @@ Watching for file changes with StatReloader
 "POST /api/authenticate/ HTTP/1.1" 200 122
 "GET /medication-selection/48/ HTTP/1.1" 200 18584
 "GET /static/css/medication-selection.css HTTP/1.1" 304 0
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"POST /api/checkout/ HTTP/1.1" 200 72
+"GET / HTTP/1.1" 200 2632
+"GET /manage/medications/ HTTP/1.1" 200 15575
+"GET /static/css/admin-pages.css HTTP/1.1" 304 0
+"GET /api/medications/list/ HTTP/1.1" 200 1874
+Not Found: /inventory/4/
+"GET /inventory/4/ HTTP/1.1" 404 10668
+"GET /inventory/ HTTP/1.1" 200 11251
+"GET /static/css/inventory.css HTTP/1.1" 304 0
+Not Found: /inventory/1/
+"GET /inventory/1/ HTTP/1.1" 404 10668
+"GET /inventory/ HTTP/1.1" 200 21828
+- Broken pipe from ('127.0.0.1', 52495)
+- Broken pipe from ('127.0.0.1', 63904)
+- Broken pipe from ('127.0.0.1', 52481)
+"GET /7/ HTTP/1.1" 200 8353
+"GET /1/ HTTP/1.1" 200 8121
+"GET /manage/medications/ HTTP/1.1" 200 15575
+"GET /api/medications/list/ HTTP/1.1" 200 1874
+"GET /inventory/ HTTP/1.1" 200 21828
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET /inventory/ HTTP/1.1" 200 21755
+"GET / HTTP/1.1" 200 2559
+"GET /inventory/ HTTP/1.1" 200 21755
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\urls.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2559
+"GET /inventory/ HTTP/1.1" 200 28823
+"POST /api/medications/restock/ HTTP/1.1" 200 97
+"GET /inventory/ HTTP/1.1" 200 28823

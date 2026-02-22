@@ -492,10 +492,6 @@ def delete_astronaut(request, astronaut_id):
 # MEDICATION MANAGEMENT VIEWS
 # ============================================================================
 
-def manage_medications(request):
-    """Medication management page"""
-    return render(request, 'manage_medications.html')
-
 
 def pill_recognition(request):
     """Pill recognition page for scanning and identifying pills"""
@@ -608,7 +604,58 @@ def delete_medication(request, medication_id):
             })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
+@csrf_exempt
+def restock_medication(request):
+    """Add stock to an existing medication"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            medication_id = data.get('medication_id')
+            quantity = int(data.get('quantity', 0))
+            expiration_date = data.get('expiration_date')
+            notes = data.get('notes', '')
 
+            if quantity <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Quantity must be greater than 0'
+                })
+
+            medication = get_object_or_404(Medication, id=medication_id)
+
+            previous_quantity = medication.current_quantity
+            medication.current_quantity += quantity
+
+            # Update expiration date if a new one was provided
+            if expiration_date:
+                from datetime import date
+                medication.expiration_date = expiration_date
+
+            medication.save()
+
+            # Log the restock in InventoryLog
+            InventoryLog.objects.create(
+                medication=medication,
+                log_type='RESTOCK',
+                quantity_change=quantity,
+                previous_quantity=previous_quantity,
+                new_quantity=medication.current_quantity,
+                notes=notes or f'Restock of {quantity} units'
+            )
+
+            return JsonResponse({
+                'success': True,
+                'new_quantity': medication.current_quantity,
+                'message': f'Successfully restocked {quantity} units of {medication.name}'
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+
+    return JsonResponse({'success': False, 'message': 'POST required'}, status=400)
 
 # ============================================================================
 # SEARCH FUNCTIONALITY
