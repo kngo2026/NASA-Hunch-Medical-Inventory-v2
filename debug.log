@@ -17714,3 +17714,26 @@ Watching for file changes with StatReloader
 C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
 Watching for file changes with StatReloader
 "GET / HTTP/1.1" 200 2632
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /static/css/base.css HTTP/1.1" 304 0
+"GET /static/css/home.css HTTP/1.1" 304 0
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"GET /static/css/lockscreen.css HTTP/1.1" 304 0
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /lockscreen/ HTTP/1.1" 200 7190
+- Broken pipe from ('127.0.0.1', 54228)
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py changed, reloading.
+Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2632
+"GET /static/css/base.css HTTP/1.1" 304 0
+"GET /static/css/home.css HTTP/1.1" 304 0
+"GET /lockscreen/ HTTP/1.1" 200 7190
+"GET /static/css/lockscreen.css HTTP/1.1" 304 0
+"POST /api/authenticate/ HTTP/1.1" 200 122
+"GET /medication-selection/48/ HTTP/1.1" 200 18584
+"GET /static/css/medication-selection.css HTTP/1.1" 304 0

@@ -72,27 +72,23 @@ def lockscreen(request):
 @csrf_exempt
 def authenticate_face(request):
     """
-    Improved face authentication using face_distance for better accuracy.
-    - Uses CNN model for better detection
-    - Picks the BEST match by distance, not just the first match
-    - Stricter tolerance (0.45 instead of 0.6)
-    - Requires a confidence gap so it won't misidentify similar faces
+    Face authentication using HOG (fast) + num_jitters=3 (accurate enough).
+    Resizes image first for speed, strict threshold to avoid misidentification.
     """
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES['image']
             image = face_recognition.load_image_file(image_file)
-            pil_img = PIL.Image.fromarray(image)
+
+            # Resize to max 640px wide — much faster processing
+            pil_img = Image.fromarray(image)
             if pil_img.width > 640:
                 scale = 640 / pil_img.width
                 pil_img = pil_img.resize((640, int(pil_img.height * scale)))
                 image = np.array(pil_img)
-            # CNN is more accurate than HOG (slower but worth it for auth)
-            face_locations = face_recognition.face_locations(image, model="cnn")
 
-            # Fallback to HOG if CNN finds nothing (e.g. bad lighting/angle)
-            if not face_locations:
-                face_locations = face_recognition.face_locations(image, model="hog")
+            # HOG is fast, good enough for frontal face auth
+            face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
                 SystemLog.objects.create(
@@ -104,8 +100,11 @@ def authenticate_face(request):
                     'success': False,
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
+
+            # num_jitters=3 — good balance between speed and accuracy
+            # encodes face 3 times with slight variations and averages them
             face_encodings = face_recognition.face_encodings(
-                image, face_locations, num_jitters=1
+                image, face_locations, num_jitters=3
             )
 
             if not face_encodings:
@@ -123,14 +122,10 @@ def authenticate_face(request):
                     'message': 'No registered users found in the system.'
                 })
 
-            # Build list of known encodings
-            known_encodings = []
-            for astronaut in astronauts:
-                known_encodings.append(pickle.loads(astronaut.face_encoding))
+            known_encodings = [pickle.loads(a.face_encoding) for a in astronauts]
 
-            # Check each detected face
             for face_encoding in face_encodings:
-                # Get distance to every known face (lower = more similar)
+                # Get actual distance to every known face (lower = more similar)
                 distances = face_recognition.face_distance(known_encodings, face_encoding)
 
                 best_index = int(distances.argmin())
@@ -139,8 +134,7 @@ def authenticate_face(request):
                 print(f"Best match: {astronauts[best_index].name}, distance: {best_distance:.4f}")
                 print(f"All distances: {[(astronauts[i].name, round(d, 4)) for i, d in enumerate(distances)]}")
 
-                # Strict threshold — 0.45 means faces must be very similar
-                # (0.6 is the default but causes misidentification)
+                # 0.45 is strict enough to prevent misidentification
                 THRESHOLD = 0.45
 
                 if best_distance > THRESHOLD:
@@ -151,23 +145,19 @@ def authenticate_face(request):
                     )
                     return JsonResponse({
                         'success': False,
-                        'message': 'Face not recognized. Please try again or re-register your face.'
+                        'message': 'Face not recognized. Please try again.'
                     })
 
-                # Make sure the best match is clearly better than the second best
-                # This prevents misidentifying someone who looks similar to a registered user
+                # If more than one person is registered, make sure the match
+                # is clearly better than the second best to avoid misidentification
                 if len(distances) > 1:
                     sorted_distances = sorted(distances)
-                    best = sorted_distances[0]
-                    second_best = sorted_distances[1]
-                    confidence_gap = second_best - best
-
-                    # If the top two matches are too close together, reject
-                    if confidence_gap < 0.08:
-                        print(f"Ambiguous match — gap too small: {confidence_gap:.4f}")
+                    gap = sorted_distances[1] - sorted_distances[0]
+                    if gap < 0.08:
+                        print(f"Ambiguous match — gap too small: {gap:.4f}")
                         SystemLog.objects.create(
                             event_type='AUTH_FAILURE',
-                            description=f"Ambiguous face match (gap: {confidence_gap:.4f})",
+                            description=f"Ambiguous face match (gap: {gap:.4f})",
                             ip_address=request.META.get('REMOTE_ADDR')
                         )
                         return JsonResponse({
@@ -175,7 +165,7 @@ def authenticate_face(request):
                             'message': 'Could not confidently identify face. Please try again.'
                         })
 
-                # Matched successfully
+                # Success
                 astronaut = astronauts[best_index]
                 confidence = round((1 - best_distance) * 100, 1)
 
