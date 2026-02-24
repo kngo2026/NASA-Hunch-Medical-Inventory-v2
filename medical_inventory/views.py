@@ -345,16 +345,17 @@ def manage_astronauts(request):
 
 
 @csrf_exempt
+@login_required
 def add_astronaut(request):
     """Add new astronaut with face encoding"""
     if request.method == 'POST':
         try:
             astronaut_id = request.POST.get('astronaut_id')
             name = request.POST.get('name')
-            email = request.POST.get('email')
             photo = request.FILES.get('photo')
+            password = request.POST.get('password', astronaut_id)
             
-            if not all([astronaut_id, name, email, photo]):
+            if not all([astronaut_id, name, photo]):
                 return JsonResponse({
                     'success': False,
                     'message': 'All fields are required'
@@ -364,7 +365,7 @@ def add_astronaut(request):
             from django.contrib.auth.models import User
             user = User.objects.create_user(
                 username=astronaut_id,
-                email=email,
+                password=password,
                 first_name=name.split()[0] if name else '',
                 last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else ''
             )
@@ -373,7 +374,8 @@ def add_astronaut(request):
             astronaut = Astronaut.objects.create(
                 user=user,
                 astronaut_id=astronaut_id,
-                name=name
+                name=name,
+                photo=photo
             )
             
             # Process face encoding
@@ -408,6 +410,21 @@ def add_astronaut(request):
 
 @csrf_exempt
 def list_astronauts(request):
+    """List all astronauts with photo URLs"""
+    astronauts = Astronaut.objects.all()
+    
+    data = [{
+        'id': a.id,
+        'name': a.name,
+        'astronaut_id': a.astronaut_id,
+        'has_face_encoding': a.face_encoding is not None,
+        'photo_url': a.photo.url if a.photo else None
+    } for a in astronauts]
+    
+    return JsonResponse({'astronauts': data})
+
+@csrf_exempt
+def list_astronauts(request):
     """List all astronauts"""
     astronauts = Astronaut.objects.all()
     
@@ -416,7 +433,8 @@ def list_astronauts(request):
         'name': a.name,
         'astronaut_id': a.astronaut_id,
         'has_face_encoding': a.face_encoding is not None,
-        'photo_url': None  # We don't store photos, just encodings
+        # 'photo_url': a.photo.url if a.photo else None
+        'photo_url': 'data:image/jpeg;base64,' + a.photo if a.photo else None
     } for a in astronauts]
     
     return JsonResponse({'astronauts': data})
@@ -2343,3 +2361,67 @@ def add_bottle_to_inventory(request):
             }, status=500)
     
     return JsonResponse({'success': False}, status=400)
+def medication_inventory_graph(request):
+    return render(request, 'medication_line_graph.html')
+@csrf_exempt
+def medication_history_api(request):
+    days = int(request.GET.get('days', 30))
+    since = timezone.now() - timedelta(days=days) if days > 0 else None
+
+    # Build list of every date in the range
+    today = timezone.now().date()
+    if since:
+        start_date = since.date()
+    else:
+        first_log = InventoryLog.objects.order_by('timestamp').first()
+        start_date = first_log.timestamp.date() if first_log else today
+
+    all_dates = []
+    current = start_date
+    while current <= today:
+        all_dates.append(current)
+        current += timedelta(days=1)
+
+    data = {}
+    for med in Medication.objects.all():
+        logs = InventoryLog.objects.filter(medication=med)
+        if since:
+            logs = logs.filter(timestamp__gte=since)
+        logs = list(logs.order_by('timestamp'))
+
+        if not logs:
+            data[med.name] = {
+                'type': med.get_medication_type_display(),
+                'points': [
+                    {'date': d.strftime('%Y-%m-%d'), 'quantity': med.current_quantity}
+                    for d in all_dates
+                ]
+            }
+            continue
+
+        # Fill every date working backwards from current quantity
+        log_map = {}
+        for log in logs:
+            log_map[log.timestamp.date()] = log.new_quantity
+
+        points = []
+        last_qty = med.current_quantity
+        for d in reversed(all_dates):
+            if d in log_map:
+                last_qty = log_map[d]
+            points.append({'date': d.strftime('%Y-%m-%d'), 'quantity': last_qty})
+
+        points.reverse()
+
+        data[med.name] = {
+            'type': med.get_medication_type_display(),
+            'points': points
+        }
+
+    summary = {
+        'total':    Medication.objects.count(),
+        'normal':   Medication.objects.filter(status='NORMAL').count(),
+        'low':      Medication.objects.filter(status='LOW').count(),
+        'critical': Medication.objects.filter(status__in=['CRITICAL', 'OUT']).count(),
+    }
+    return JsonResponse({'data': data, 'summary': summary})

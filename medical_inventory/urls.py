@@ -4,6 +4,8 @@ from . import views
 app_name = 'medical_inventory'
 
 urlpatterns = [
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
     # Main pages
     path('', views.home, name='home'),
     path('lockscreen/', views.lockscreen, name='lockscreen'),
@@ -17,8 +19,7 @@ urlpatterns = [
     # path('<int:id>/', views.medication_detail, name='medication_detail'),
     # path('inventory/add/', views.add_medication, name='add_medication'),
     
-    # Pill recognition
-    path('pill-recognition/', views.pill_recognition, name='pill_recognition'),
+    # Bottle recognition
     path('bottle-reader/', views.bottle_reading_page, name='bottle_reader'),
     path('api/read-pill-bottle/', views.read_pill_bottle, name='read_pill_bottle'),
     path('api/add-bottle-to-inventory/', views.add_bottle_to_inventory, name='add_bottle_to_inventory'),
@@ -58,5 +59,9 @@ urlpatterns = [
     path('api/medications/add/', views.add_medication, name='add_medication'),
     path('api/medications/list/', views.list_medications, name='list_medications'),
     path('api/medications/update-image/', views.update_medication_image, name='update_medication_image'),
+    path('api/medications/update-quantity/', views.update_medication_quantity, name='update_medication_quantity'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
-]
+    
+    path('inventory/graph/', views.medication_inventory_graph, name='inventory_graph'),
+    path('api/medications/history/', views.medication_history_api, name='medication_history_api'),
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
