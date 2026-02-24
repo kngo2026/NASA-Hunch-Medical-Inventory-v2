@@ -1,6 +1,5 @@
 from django import forms
-from .models import Medication  # Adjust import based on your model location
-
+from .models import Medication 
 class MedicationForm(forms.ModelForm):
     class Meta:
         model = Medication
