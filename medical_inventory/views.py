@@ -1687,7 +1687,9 @@ def add_astronaut(request):
             astronaut = Astronaut.objects.create(
                 user=user,
                 astronaut_id=astronaut_id,
-                name=name
+                name=name,
+                photo = photo,
+                face_encoding = pickle.dumps(face_encodings[0]),
             )
             
             # Process face encoding
@@ -1737,28 +1739,28 @@ def list_astronauts(request):
 
 @csrf_exempt
 def update_astronaut_face(request):
-    """Update astronaut face encoding"""
     if request.method == 'POST':
         try:
             astronaut_id = request.POST.get('astronaut_id')
             photo = request.FILES.get('photo')
-            
+
             if not all([astronaut_id, photo]):
                 return JsonResponse({
                     'success': False,
                     'message': 'Astronaut ID and photo are required'
                 })
-            
+
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            
-            # Process face encoding
+
             image = face_recognition.load_image_file(photo)
             face_encodings = face_recognition.face_encodings(image)
-            
+
             if face_encodings:
                 astronaut.face_encoding = pickle.dumps(face_encodings[0])
+                photo.seek(0)
+                astronaut.photo = photo
                 astronaut.save()
-                
+
                 return JsonResponse({
                     'success': True,
                     'message': 'Face encoding updated successfully'
@@ -1768,15 +1770,14 @@ def update_astronaut_face(request):
                     'success': False,
                     'message': 'No face detected in photo'
                 })
-                
+
         except Exception as e:
             return JsonResponse({
                 'success': False,
                 'message': str(e)
             })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
 
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
 def delete_astronaut(request, astronaut_id):
