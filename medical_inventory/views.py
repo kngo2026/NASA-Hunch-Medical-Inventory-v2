@@ -1,6 +1,4 @@
-# views.py - Complete Medical Inventory System with Facial Recognition and Pill Recognition
 from unittest import result
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -52,7 +50,7 @@ if os.name == 'nt':
 from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
 from .forms import MedicationForm
 from sklearn.cluster import KMeans
-# Configuration
+
 ESP32_IP = getattr(settings, 'ESP32_IP_ADDRESS', '')
 # ============================================================================
 # LOGIN/LOGOUT VIEWS
@@ -111,7 +109,6 @@ def authenticate_face(request):
                 pil_img = pil_img.resize((640, int(pil_img.height * scale)))
                 image = np.array(pil_img)
 
-            # HOG is fast, good enough for frontal face auth
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
@@ -125,8 +122,6 @@ def authenticate_face(request):
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
 
-            # num_jitters=3 — good balance between speed and accuracy
-            # encodes face 3 times with slight variations and averages them
             face_encodings = face_recognition.face_encodings(
                 image, face_locations, num_jitters=3
             )
@@ -149,7 +144,7 @@ def authenticate_face(request):
             known_encodings = [pickle.loads(a.face_encoding) for a in astronauts]
 
             for face_encoding in face_encodings:
-                # Get actual distance to every known face (lower = more similar)
+                # Get actual distance to every known face
                 distances = face_recognition.face_distance(known_encodings, face_encoding)
 
                 best_index = int(distances.argmin())
@@ -158,7 +153,6 @@ def authenticate_face(request):
                 print(f"Best match: {astronauts[best_index].name}, distance: {best_distance:.4f}")
                 print(f"All distances: {[(astronauts[i].name, round(d, 4)) for i, d in enumerate(distances)]}")
 
-                # 0.45 is strict enough to prevent misidentification
                 THRESHOLD = 0.45
 
                 if best_distance > THRESHOLD:
@@ -172,8 +166,7 @@ def authenticate_face(request):
                         'message': 'Face not recognized. Please try again.'
                     })
 
-                # If more than one person is registered, make sure the match
-                # is clearly better than the second best to avoid misidentification
+                # If more than one person is registered, make sure the match is clearly better than the second best to avoid misidentification
                 if len(distances) > 1:
                     sorted_distances = sorted(distances)
                     gap = sorted_distances[1] - sorted_distances[0]
@@ -457,7 +450,6 @@ def list_astronauts(request):
         'name': a.name,
         'astronaut_id': a.astronaut_id,
         'has_face_encoding': a.face_encoding is not None,
-        # 'photo_url': a.photo.url if a.photo else None
         'photo_url': 'data:image/jpeg;base64,' + a.photo if a.photo else None
     } for a in astronauts]
     
@@ -480,7 +472,6 @@ def update_astronaut_face(request):
             
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
             
-            # Process face encoding
             image = face_recognition.load_image_file(photo)
             face_encodings = face_recognition.face_encodings(image)
             
@@ -759,7 +750,6 @@ def search_medications_api(request):
             Q(description__icontains=query)
         ).order_by('name')
     
-    # Return JSON for AJAX
     data = [{
         'id': med.id,
         'name': med.name,
@@ -774,178 +764,6 @@ def search_medications_api(request):
     } for med in medications]
     
     return JsonResponse({'medications': data})
-
-
-# ============================================================================
-# WARNING SYSTEM
-# ============================================================================
-
-def check_medication_threshold(astronaut, medication, quantity):
-    """
-    Check if medication withdrawal exceeds thresholds and create warning if needed
-    Returns: (warning_created, warning_severity)
-    """
-    try:
-        from .models import MedicationThreshold, WarningLog
-    except ImportError:
-        return False, None
-    
-    try:
-        threshold = medication.threshold
-    except:
-        # No threshold set for this medication
-        return False, None
-    
-    warning_created = False
-    max_severity = None
-    
-    # Check 1: Single dose limit
-    if quantity > threshold.single_dose_limit:
-        severity = 'CRITICAL' if quantity > threshold.single_dose_limit * 1.5 else 'HIGH'
-        WarningLog.objects.create(
-            astronaut=astronaut,
-            medication=medication,
-            quantity_taken=quantity,
-            warning_message=f"Single dose limit exceeded: {quantity} units (limit: {threshold.single_dose_limit})",
-            severity=severity
-        )
-        warning_created = True
-        max_severity = severity
-    
-    # Check 2: Daily limit
-    today_start = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    today_checkouts = MedicationCheckout.objects.filter(
-        astronaut=astronaut,
-        medication=medication,
-        checkout_time__gte=today_start
-    )
-    today_total = today_checkouts.aggregate(total=Sum('quantity'))['total'] or 0
-    today_total += quantity
-    
-    if today_total > threshold.daily_limit:
-        WarningLog.objects.create(
-            astronaut=astronaut,
-            medication=medication,
-            quantity_taken=quantity,
-            warning_message=f"Daily limit exceeded: {today_total} units today (limit: {threshold.daily_limit})",
-            severity='CRITICAL'
-        )
-        warning_created = True
-        if not max_severity or max_severity != 'CRITICAL':
-            max_severity = 'CRITICAL'
-    
-    elif today_total >= threshold.daily_limit * (threshold.warning_percentage / 100):
-        WarningLog.objects.create(
-            astronaut=astronaut,
-            medication=medication,
-            quantity_taken=quantity,
-            warning_message=f"Approaching daily limit: {today_total} units today (limit: {threshold.daily_limit})",
-            severity='MEDIUM'
-        )
-        warning_created = True
-        if not max_severity:
-            max_severity = 'MEDIUM'
-    
-    return warning_created, max_severity
-
-
-@login_required
-@user_passes_test(lambda u: u.is_staff or u.is_superuser)
-def warning_log_view(request):
-    """View all medication warnings"""
-    try:
-        from .models import WarningLog
-    except ImportError:
-        messages.error(request, "Warning system not configured. Please add WarningLog model.")
-        return redirect('medical_inventory:home')
-    
-    warnings = WarningLog.objects.select_related('astronaut', 'medication', 'acknowledged_by').all()
-    
-    # Filters
-    severity = request.GET.get('severity')
-    if severity:
-        warnings = warnings.filter(severity=severity)
-    
-    acknowledged = request.GET.get('acknowledged')
-    if acknowledged == 'true':
-        warnings = warnings.filter(acknowledged=True)
-    elif acknowledged == 'false':
-        warnings = warnings.filter(acknowledged=False)
-    
-    # Export to CSV if requested
-    if request.GET.get('export') == 'csv':
-        return export_warnings_csv(warnings)
-    
-    # Statistics
-    stats = {
-        'total': warnings.count(),
-        'acknowledged': warnings.filter(acknowledged=True).count(),
-        'pending': warnings.filter(acknowledged=False).count(),
-        'critical': warnings.filter(severity='CRITICAL').count(),
-    }
-    
-    return render(request, 'warning_log.html', {
-        'warnings': warnings[:100],  # Limit to recent 100
-        'stats': stats
-    })
-
-
-@login_required
-@user_passes_test(lambda u: u.is_staff or u.is_superuser)
-@require_POST
-def acknowledge_warning(request, warning_id):
-    """Acknowledge a warning"""
-    try:
-        from .models import WarningLog
-        warning = get_object_or_404(WarningLog, id=warning_id)
-        
-        # Get or create an Astronaut object for the current user
-        astronaut, _ = Astronaut.objects.get_or_create(
-            user=request.user,
-            defaults={
-                'name': request.user.get_full_name() or request.user.username,
-                'astronaut_id': f'ADMIN_{request.user.id}'
-            }
-        )
-        
-        warning.acknowledged = True
-        warning.acknowledged_by = astronaut
-        warning.acknowledged_at = timezone.now()
-        warning.save()
-        
-        messages.success(request, "Warning acknowledged successfully.")
-    except ImportError:
-        messages.error(request, "Warning system not configured.")
-    
-    return redirect('medical_inventory:warning_log')
-
-
-def export_warnings_csv(warnings):
-    """Export warnings to CSV"""
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="warnings_export_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-    
-    writer = csv.writer(response)
-    writer.writerow([
-        'Date', 'Time', 'Astronaut', 'Medication', 'Quantity', 
-        'Severity', 'Message', 'Acknowledged', 'Acknowledged By', 'Acknowledged At'
-    ])
-    
-    for warning in warnings:
-        writer.writerow([
-            warning.timestamp.strftime('%Y-%m-%d'),
-            warning.timestamp.strftime('%H:%M:%S'),
-            warning.astronaut.name,
-            warning.medication.name,
-            warning.quantity_taken,
-            warning.get_severity_display(),
-            warning.warning_message,
-            'Yes' if warning.acknowledged else 'No',
-            warning.acknowledged_by.name if warning.acknowledged_by else '',
-            warning.acknowledged_at.strftime('%Y-%m-%d %H:%M') if warning.acknowledged_at else ''
-        ])
-    
-    return response
 
 
 # ============================================================================
@@ -1030,7 +848,6 @@ def capture_astronaut_photo(request):
             return JsonResponse({'success': False, 'error': 'No photo data'}, status=400)
         
         try:
-            # Decode base64 image
             format, imgstr = photo_data.split(';base64,')
             ext = format.split('/')[-1]
             
@@ -1038,7 +855,6 @@ def capture_astronaut_photo(request):
             import face_recognition
             import pickle
             
-            # Decode image
             image_data = base64.b64decode(imgstr)
             
             if astronaut_id:
@@ -1069,10 +885,9 @@ def capture_astronaut_photo(request):
             # Save photo
             astronaut.user.username  # Access to get the username
             photo_filename = f'{astronaut.astronaut_id}_photo.{ext}'
-            astronaut.face_encoding = None  # Will be set below
+            astronaut.face_encoding = None
             
             # Create face encoding
-            # First save the image temporarily to process it
             image = Image.open(io.BytesIO(image_data))
             image_np = face_recognition.load_image_file(io.BytesIO(image_data))
             
@@ -1085,9 +900,7 @@ def capture_astronaut_photo(request):
             astronaut.face_encoding = pickle.dumps(face_encodings[0])
             astronaut.save()
             
-            # Now save the actual photo file
-            # Note: You'll need to create a proper file path
-            # This is a simplified version
+
             from django.core.files.uploadedfile import InMemoryUploadedFile
             image_io = io.BytesIO(image_data)
             uploaded_file = InMemoryUploadedFile(
@@ -1095,8 +908,6 @@ def capture_astronaut_photo(request):
                 len(image_data), None
             )
             
-            # If your Astronaut model has a photo field, save it
-            # astronaut.photo.save(photo_filename, uploaded_file, save=True)
             
             SystemLog.objects.create(
                 event_type='AUTH_SUCCESS',
@@ -1114,7 +925,6 @@ def capture_astronaut_photo(request):
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)}, status=500)
     
-    # GET request - show capture interface
     astronaut_id = request.GET.get('astronaut_id')
     return render(request, 'capture_photo.html', {
         'astronaut_id': astronaut_id
@@ -1177,7 +987,6 @@ def checkout_medication(request):
             
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
             checkouts_created = 0
-            # warnings_triggered = []
             
             for med_data in medications:
                 medication = get_object_or_404(Medication, id=med_data['medication_id'])
@@ -1190,14 +999,6 @@ def checkout_medication(request):
                         'message': f'Insufficient stock for {medication.name}'
                     }, status=400)
                 
-                # Check thresholds
-                # warning_created, severity = check_medication_threshold(astronaut, medication, quantity)
-                # if warning_created:
-                #     warnings_triggered.append({
-                #         'medication': medication.name,
-                #         'severity': severity
-                #     })
-                
                 # Store previous quantity
                 previous_quantity = medication.current_quantity
                 
@@ -1209,8 +1010,6 @@ def checkout_medication(request):
                     is_prescription=med_data.get('is_prescription', False)
                 )
                 
-                # Medication.save() automatically updates quantity
-                # Now create inventory log
                 InventoryLog.objects.create(
                     medication=medication,
                     log_type='CHECKOUT',
@@ -1237,11 +1036,8 @@ def checkout_medication(request):
                 'success': True,
                 'checkouts': checkouts_created,
                 'unlock_status': unlock_success,
-                # 'warnings': warnings_triggered
             }
             
-            # if warnings_triggered:
-            #     response_data['warning_message'] = f"Warning: Excessive medication withdrawal detected for {', '.join([w['medication'] for w in warnings_triggered])}"
             
             return JsonResponse(response_data)
             
@@ -1301,7 +1097,7 @@ def recognize_pill_with_cnn(image_path):
     predicted_class = np.argmax(predictions[0])
     confidence = float(predictions[0][predicted_class]) * 100
     
-    # Load class labels (you need to create this file during training)
+    # Load class labels
     labels_path = os.path.join('models', 'pill_labels.pkl')
     if os.path.exists(labels_path):
         with open(labels_path, 'rb') as f:
@@ -1392,7 +1188,7 @@ def rgb_to_color_name(rgb):
     """Convert RGB values to common color names"""
     r, g, b = rgb
     
-    # Define color thresholds
+    # Defines color thresholds
     if r > 200 and g > 200 and b > 200:
         return "WHITE"
     elif r < 50 and g < 50 and b < 50:
@@ -1430,18 +1226,13 @@ def match_pill_by_features(features):
     for med in medications:
         score = 0
         
-        # Compare shape (stored in medication description or custom field)
-        # You would need to add these fields to your Medication model
         if hasattr(med, 'pill_shape') and med.pill_shape == features['shape']:
             score += 40
         
-        # Compare color
         if hasattr(med, 'pill_color') and med.pill_color == features['color']:
             score += 40
         
-        # Compare size (if you have this data)
         if hasattr(med, 'pill_size'):
-            # Add size comparison logic
             pass
         
         if score > 30:  # Threshold for potential match
@@ -1451,7 +1242,6 @@ def match_pill_by_features(features):
                 'reason': f"Matched on shape: {features['shape']}, color: {features['color']}"
             })
     
-    # Sort by confidence
     matches.sort(key=lambda x: x['confidence'], reverse=True)
     return matches[:5]  # Return top 5 matches
 
@@ -1550,13 +1340,12 @@ def recognize_pill(request):
                 'features': None
             }
             
-            # APPROACH 1: Try CNN model first (most accurate)
+            # APPROACH 1: Try CNN model first
             if TENSORFLOW_AVAILABLE:
                 try:
                     med_id, confidence, med_name = recognize_pill_with_cnn(full_path)
                     
-                    if med_id is not None and confidence > 70:  # Confidence threshold
-                        # Try to find medication in database
+                    if med_id is not None and confidence > 70:
                         try:
                             medication = Medication.objects.get(id=med_id)
                             results['success'] = True
@@ -1571,7 +1360,6 @@ def recognize_pill(request):
                                 'image_url': medication.pill_image.url if medication.pill_image else None
                             }]
                             
-                            # Clean up and return
                             default_storage.delete(image_path)
                             return JsonResponse(results)
                         except Medication.DoesNotExist:
@@ -1601,7 +1389,6 @@ def recognize_pill(request):
                             'image_url': match['medication'].pill_image.url if match['medication'].pill_image else None
                         } for match in feature_matches]
                         
-                        # Clean up and return
                         default_storage.delete(image_path)
                         return JsonResponse(results)
             except Exception as e:
@@ -1625,7 +1412,6 @@ def recognize_pill(request):
                         'image_url': match['medication'].pill_image.url if match['medication'].pill_image else None
                     } for match in similarity_matches]
                     
-                    # Clean up and return
                     default_storage.delete(image_path)
                     return JsonResponse(results)
             except Exception as e:
@@ -1641,7 +1427,6 @@ def recognize_pill(request):
             })
             
         except Exception as e:
-            # Clean up on error
             if 'image_path' in locals():
                 try:
                     default_storage.delete(image_path)
@@ -1679,7 +1464,7 @@ def add_astronaut(request):
             username = astronaut_id.lower()
             user = User.objects.create_user(
                 username=username,
-                email=f"{username}@nasa.gov",  # Auto-generate email
+                email=f"{username}@nasa.gov", 
                 password=password if password else astronaut_id
             )
             
@@ -1920,17 +1705,14 @@ def manage_medications(request):
     return render(request, 'manage_medications.html')
 
 def inventory_dashboard(request):
-    # Your existing view code
     medications = Medication.objects.all()
     total_medications = medications.count()
     low_stock_count = medications.filter(current_quantity__lte=10).count()
-    # ... other context variables
     
     context = {
         'medications': medications,
         'total_medications': total_medications,
         'low_stock_count': low_stock_count,
-        # ... other context
     }
     return render(request, 'inventory_dashboard.html', context)
 
@@ -1940,7 +1722,7 @@ def add_medication(request):
         if form.is_valid():
             form.save()
             messages.success(request, 'Medication added successfully!')
-            return redirect('medical_inventory:inventory_dashboard')  # Adjust to your URL name
+            return redirect('medical_inventory:inventory_dashboard')
         else:
             messages.error(request, 'Please correct the errors below.')
     else:
@@ -1998,7 +1780,6 @@ class PillBottleReader:
             processed_img = self.preprocess_image(image_path)
             pil_img = Image.fromarray(processed_img)
             
-            # Try multiple configs
             configs = [
                 '--oem 3 --psm 6',
                 '--oem 3 --psm 11',
@@ -2014,7 +1795,6 @@ class PillBottleReader:
                 except:
                     continue
             
-            # Also try original image
             try:
                 original = cv2.imread(image_path)
                 gray_simple = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
@@ -2027,11 +1807,10 @@ class PillBottleReader:
             if not results:
                 return ""
             
-            # Combine all results into one big text block
             combined_text = '\n'.join(results)
             
             print("\n=== OCR EXTRACTED TEXT ===")
-            print(combined_text[:500])  # Print first 500 chars
+            print(combined_text[:500])
             print("=" * 50)
             
             return combined_text
@@ -2047,40 +1826,33 @@ class PillBottleReader:
         if not text:
             return []
         
-        # Get ALL medications from database
         all_medications = Medication.objects.all()
         
         if not all_medications.exists():
             print("No medications in database to search for!")
             return []
         
-        # Clean the OCR text
         text_clean = text.lower()
         
-        # Remove extra whitespace
         text_clean = ' '.join(text_clean.split())
         
         matches = []
         
-        print(f"\n🔍 Searching for {all_medications.count()} medications in OCR text...")
+        print(f"\nSearching for {all_medications.count()} medications in OCR text...")
         
         for med in all_medications:
-            # Search for medication name
             med_name = med.name.lower().strip()
             
-            # Also search generic name if it exists
             generic_name = None
             if hasattr(med, 'generic_name') and med.generic_name:
                 generic_name = med.generic_name.lower().strip()
             
-            # Split into words for partial matching
             name_words = med_name.split()
             
-            # Calculate match score
             score = 0
             match_method = None
             
-            # Method 1: Exact match (best)
+            # Method 1: Exact match
             if med_name in text_clean:
                 score = 95
                 match_method = "exact match"
@@ -2090,20 +1862,19 @@ class PillBottleReader:
                 score = 90
                 match_method = "generic name exact"
             
-            # Method 3: All words present (good)
+            # Method 3: All words present
             elif len(name_words) > 1 and all(word in text_clean for word in name_words):
                 score = 85
                 match_method = "all words present"
             
-            # Method 4: Main word present (for compound names)
+            # Method 4: Main word present
             elif len(name_words) > 1 and name_words[0] in text_clean:
                 # Main word is usually the first word (e.g., "PENICILLIN" in "Penicillin V")
                 score = 75
                 match_method = f"main word '{name_words[0]}'"
             
-            # Method 5: Fuzzy match (okay)
+            # Method 5: Fuzzy match
             else:
-                # Try fuzzy matching on each line
                 for line in text.split('\n'):
                     line_clean = line.lower().strip()
                     if len(line_clean) < 3:
@@ -2124,7 +1895,6 @@ class PillBottleReader:
                 })
                 print(f"  ✓ Found: {med.name} (score: {score}, method: {match_method})")
         
-        # Sort by score (highest first)
         matches.sort(key=lambda x: x['score'], reverse=True)
         
         return matches
@@ -2138,7 +1908,6 @@ class PillBottleReader:
     
     def process_bottle_image(self, image_path):
         """Complete pipeline: OCR -> Search for known medications"""
-        # Extract text
         raw_text = self.extract_text_from_bottle(image_path)
         
         if not raw_text or len(raw_text) < 3:
@@ -2154,7 +1923,6 @@ class PillBottleReader:
                 ]
             }
         
-        # Search for medications in the extracted text
         matches = self.search_for_medications_in_text(raw_text)
         
         if not matches:
@@ -2169,11 +1937,9 @@ class PillBottleReader:
                 ]
             }
         
-        # Use the best match
         best_match = matches[0]
         medication = best_match['medication']
         
-        # Extract dosage from text
         dosage = self.extract_dosage(raw_text)
         
         result = {
@@ -2192,18 +1958,16 @@ class PillBottleReader:
                 'exists_in_system': True
             },
             'inventory_location': None,
-            'all_matches': []  # Include other possible matches
+            'all_matches': [] 
         }
         
-        # Add all matches for reference
-        for match in matches[:3]:  # Top 3 matches
+        for match in matches[:3]:
             result['all_matches'].append({
                 'name': match['name'],
                 'score': round(match['score'], 1),
                 'method': match['method']
             })
         
-        # Get inventory location
         if hasattr(medication, 'container_location') and medication.container_location:
             result['inventory_location'] = medication.container_location
         else:
@@ -2226,34 +1990,26 @@ def read_pill_bottle(request):
         try:
             image_file = request.FILES['image']
             
-            # Save to TEMPORARY file (will be deleted immediately)
             import tempfile
             import os
             
-            # Create temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-                # Write uploaded image to temp file
                 for chunk in image_file.chunks():
                     tmp_file.write(chunk)
                 temp_path = tmp_file.name
             
             try:
-                # Initialize reader
                 reader = PillBottleReader()
                 
-                # Process image
                 result = reader.process_bottle_image(temp_path)
                 
-                # If medication was successfully detected, unlock the container
                 if result.get('success') and result.get('database_match'):
                     medication_name = result.get('medication_name', 'Unknown')
                     
                     print(f"\nAttempting to unlock container for: {medication_name}")
                     
-                    # Send unlock command to ESP32
                     unlock_success = send_esp32_unlock_for_bottle(medication_name)
                     
-                    # Add unlock status to result
                     result['unlock_status'] = unlock_success
                     
                     if unlock_success:
@@ -2267,7 +2023,6 @@ def read_pill_bottle(request):
                     result['unlock_message'] = 'Medication not found - container remains locked'
                 
             finally:
-                # ALWAYS delete the temporary file
                 try:
                     os.remove(temp_path)
                     print(f"Temporary image deleted: {temp_path}")
@@ -2329,7 +2084,7 @@ def send_esp32_unlock_serial(username):
             ser.port = port
             ser.baudrate = getattr(settings, 'ESP32_BAUD_RATE', 115200)
             ser.timeout = 3
-            ser.dtr = False  # Prevent ESP32 reset when port opens
+            ser.dtr = False
             ser.rts = False
             ser.open()
 
@@ -2344,7 +2099,6 @@ def send_esp32_unlock_serial(username):
                 data = json.loads(response)
                 return data.get('success', True)
             except json.JSONDecodeError:
-                # Echo or garbled — command was still sent and lock unlocked
                 return True
 
     except Exception as e:
@@ -2393,7 +2147,6 @@ def medication_history_api(request):
     days = int(request.GET.get('days', 30))
     since = timezone.now() - timedelta(days=days) if days > 0 else None
 
-    # Build list of every date in the range
     today = timezone.now().date()
     if since:
         start_date = since.date()
@@ -2424,7 +2177,6 @@ def medication_history_api(request):
             }
             continue
 
-        # Fill every date working backwards from current quantity
         log_map = {}
         for log in logs:
             log_map[log.timestamp.date()] = log.new_quantity

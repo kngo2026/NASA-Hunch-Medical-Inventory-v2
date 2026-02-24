@@ -4,25 +4,16 @@ import os
 import hashlib
 
 
-# Load environment variables
 load_dotenv()
 
 
-# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Security settings
 SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-temporary-key')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-
-
-
-
-
-# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -68,15 +59,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'nasa.wsgi.application'
 
 
-# Database
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-
 HOST = os.getenv('DB_HOST')
 PORT = os.getenv('DB_PORT')
 NAME = os.getenv('DB_NAME')
@@ -96,7 +78,6 @@ DATABASES = {
 }
 
 
-# Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
@@ -113,43 +94,32 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
-# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
-# ESP32 Configuration
-ESP32_IP_ADDRESS = '192.168.1.53'  # UPDATE THIS to your ESP32's IP address
-# For serial communication (alternative to WiFi)
-# ESP32_SERIAL_PORT = '/dev/ttyUSB0'  # Linux
-ESP32_SERIAL_PORT = 'COM3'  # Windows
+ESP32_IP_ADDRESS = '192.168.1.53'
+ESP32_SERIAL_PORT = 'COM3'
 ESP32_BAUD_RATE = 115200
 CAMERA_INDEX = int(os.getenv('CAMERA_INDEX', '0'))
 
 
-# Emergency Access PIN Configuration
-# For production, use a secure PIN and change this!
-# To generate a hash: hashlib.sha256('YOUR_PIN'.encode()).hexdigest()
 EMERGENCY_PIN_HASH = hashlib.sha256('1234'.encode()).hexdigest()
 
 
-# Logging configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -175,7 +145,6 @@ LOGGING = {
 }
 
 
-# Make sure these directories exist
 os.makedirs(os.path.join(MEDIA_ROOT, 'astronaut_photos'), exist_ok=True)
 os.makedirs(os.path.join(MEDIA_ROOT, 'pill_images'), exist_ok=True)
 os.makedirs(os.path.join(MEDIA_ROOT, 'temp'), exist_ok=True)

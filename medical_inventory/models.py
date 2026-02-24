@@ -1,4 +1,3 @@
-# models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -8,7 +7,6 @@ class Astronaut(models.Model):
     astronaut_id = models.CharField(max_length=50, unique=True)
     name = models.CharField(max_length=200)
     face_encoding = models.BinaryField(null=True, blank=True)  # Store face encoding
-    # Add this to your Astronaut model:
     photo = models.ImageField(upload_to='astronaut_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
@@ -87,7 +85,6 @@ class Medication(models.Model):
     expiration_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NORMAL')
     
-    # Keep these for backward compatibility but make optional
     generic_name = models.CharField(max_length=200, blank=True)
     medication_type = models.CharField(max_length=20, choices=MEDICATION_TYPES, default='OTHER')
     dosage = models.CharField(max_length=100, default='Standard')
