@@ -63955,3 +63955,25 @@ code 414, message Request-URI Too Long
 "GET /static/images/default-avatar.png HTTP/1.1" 404 2002
 "GET /static/images/default-avatar.png HTTP/1.1" 404 2002
 Watching for file changes with StatReloader
+"GET / HTTP/1.1" 200 2559
+"GET /inventory/ HTTP/1.1" 200 28823
+"GET /static/css/inventory.css HTTP/1.1" 304 0
+"GET /inventory/ HTTP/1.1" 200 28932
+Internal Server Error: /inventory/graph/
+Traceback (most recent call last):
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\medical_inventory\views.py", line 2389, in medication_inventory_graph
+    return render(request, 'medication_line_graph.html')
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\shortcuts.py", line 25, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 61, in render_to_string
+    template = get_template(template_name, using=using)
+  File "C:\Users\rampa\OneDrive\Documents\NASA Hunch\medical-inventory-\venv\lib\site-packages\django\template\loader.py", line 19, in get_template
+    raise TemplateDoesNotExist(template_name, chain=chain)
+django.template.exceptions.TemplateDoesNotExist: medication_line_graph.html
+"GET /inventory/graph/ HTTP/1.1" 500 86785
+"GET /inventory/graph/ HTTP/1.1" 200 17715
+"GET /api/medications/history/?days=30 HTTP/1.1" 200 10190
