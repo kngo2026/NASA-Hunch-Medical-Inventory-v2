@@ -309,12 +309,16 @@
                     window.location.href = '/';
                 }, data.warnings && data.warnings.length > 0 ? 5000 : 3000);
             } else {
-                throw new Error(data.message || 'Checkout failed');
+                document.getElementById('modalTitle').textContent = 'Lock Failed';
+                document.getElementById('modalSpinner').style.display = 'none';
+                document.getElementById('modalMessage').textContent = (data.message || 'Could not unlock container. No medications were deducted.') + ' Reloading...';
+                setTimeout(() => location.reload(), 3000);
             }
         } catch (error) {
-            document.getElementById('modalTitle').textContent = '✗ Error';
+            document.getElementById('modalTitle').textContent = 'Lock Failed';
             document.getElementById('modalSpinner').style.display = 'none';
-            document.getElementById('modalMessage').textContent = error.message || 'An error occurred. Please try again.';
+            document.getElementById('modalMessage').textContent = (error.message || 'Could not unlock container.') + ' Reloading...';
+            setTimeout(() => location.reload(), 3000);
         }
     }
 </script>

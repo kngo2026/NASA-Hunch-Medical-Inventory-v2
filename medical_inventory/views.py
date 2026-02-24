@@ -1086,77 +1086,128 @@ def esp32_dashboard(request):
 
 @csrf_exempt
 def checkout_medication(request):
-    """Enhanced checkout with threshold checking"""
+    """
+    Process medication checkout.
+    Unlock is attempted FIRST — quantity only decreases if the lock opens.
+    """
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             astronaut_id = data.get('astronaut_id')
-            medications = data.get('medications', [])
-            
+            medications_data = data.get('medications', [])
+
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            
-            checkouts_created = 0
-            warnings_triggered = []
-            
-            for med_data in medications:
+
+            # Validate all medications and quantities BEFORE touching anything
+            validated = []
+            for med_data in medications_data:
                 medication = get_object_or_404(Medication, id=med_data['medication_id'])
-                quantity = med_data['quantity']
-                
-                # Check quantity available
+                quantity = med_data.get('quantity', 1)
+
+                if quantity <= 0:
+                    return JsonResponse({
+                        'success': False,
+                        'message': f'Invalid quantity for {medication.name}'
+                    }, status=400)
+
                 if quantity > medication.current_quantity:
                     return JsonResponse({
                         'success': False,
-                        'message': f'Insufficient stock for {medication.name}'
+                        'message': f'Insufficient stock for {medication.name}. Available: {medication.current_quantity}'
                     }, status=400)
-                
-                # Check thresholds and create warnings
+
+                validated.append({
+                    'medication': medication,
+                    'quantity': quantity,
+                    'is_prescription': med_data.get('is_prescription', False)
+                })
+
+            # ----------------------------------------------------------------
+            # UNLOCK FIRST — only proceed if lock opens successfully
+            # ----------------------------------------------------------------
+            unlock_success = unlock_container(astronaut)
+
+            if not unlock_success:
+                # Lock failed — do NOT touch the database quantities
+                SystemLog.objects.create(
+                    event_type='CONTAINER_UNLOCK',
+                    astronaut=astronaut,
+                    description=f"Lock failed for {astronaut.name} — quantities unchanged",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                return JsonResponse({
+                    'success': False,
+                    'unlock_status': False,
+                    'message': 'Could not unlock container. No medications were deducted from inventory.'
+                })
+
+            # ----------------------------------------------------------------
+            # Lock opened — now save checkouts and update quantities
+            # ----------------------------------------------------------------
+            checkouts_created = 0
+            warnings_triggered = []
+
+            for item in validated:
+                medication = item['medication']
+                quantity = item['quantity']
+
+                # Check thresholds and create warnings if needed
                 warning_created, severity = check_medication_threshold(astronaut, medication, quantity)
-                
                 if warning_created:
                     warnings_triggered.append({
                         'medication': medication.name,
                         'severity': severity
                     })
-                
-                # Create checkout
+
+                # Create checkout record (this triggers quantity decrease via model's save())
                 MedicationCheckout.objects.create(
                     astronaut=astronaut,
                     medication=medication,
                     quantity=quantity,
-                    is_prescription=med_data.get('is_prescription', False)
+                    is_prescription=item['is_prescription']
                 )
-                
+
+                # Log to InventoryLog
+                InventoryLog.objects.create(
+                    medication=medication,
+                    log_type='CHECKOUT',
+                    quantity_change=-quantity,
+                    previous_quantity=medication.current_quantity + quantity,
+                    new_quantity=medication.current_quantity,
+                    performed_by=astronaut,
+                    notes=f"Checkout by {astronaut.name}"
+                )
+
                 checkouts_created += 1
-            
-            # Send unlock signal to ESP32
-            unlock_success = send_esp32_unlock()
-            
-            # Log the event
+
             SystemLog.objects.create(
                 event_type='CONTAINER_UNLOCK',
                 astronaut=astronaut,
-                description=f"Checkout completed: {checkouts_created} medications dispensed",
+                description=f"Container unlocked for {astronaut.name}. {checkouts_created} medication(s) checked out.",
                 ip_address=request.META.get('REMOTE_ADDR')
             )
-            
+
             response_data = {
                 'success': True,
                 'checkouts': checkouts_created,
-                'unlock_status': unlock_success,
+                'unlock_status': True,
                 'warnings': warnings_triggered
             }
-            
+
             if warnings_triggered:
-                response_data['warning_message'] = f"Warning: Excessive medication withdrawal detected for {', '.join([w['medication'] for w in warnings_triggered])}"
-            
+                response_data['warning_message'] = (
+                    f"Warning: Excessive withdrawal detected for "
+                    f"{', '.join([w['medication'] for w in warnings_triggered])}"
+                )
+
             return JsonResponse(response_data)
-            
+
         except Exception as e:
             return JsonResponse({
                 'success': False,
                 'message': str(e)
             }, status=500)
-    
+
     return JsonResponse({'error': 'POST required'}, status=400)
 
 
