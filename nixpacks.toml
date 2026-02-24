@@ -1,4 +1,4 @@
 [phases.setup]
-nixPkgs = ["libX11", "libXext", "libGL", "cmake", "gcc"]
+nixPkgs = ["python310", "libX11", "libXext", "libGL", "cmake", "gcc", "xorg.libX11"]
 [variables]
 NIXPACKS_PYTHON_VERSION = "3.10"
