@@ -63954,3 +63954,4 @@ code 414, message Request-URI Too Long
 "GET /static/images/default-avatar.png HTTP/1.1" 404 2002
 "GET /static/images/default-avatar.png HTTP/1.1" 404 2002
 "GET /static/images/default-avatar.png HTTP/1.1" 404 2002
+Watching for file changes with StatReloader
