@@ -5,6 +5,111 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/admin-pages.css' %}">
+<style>
+    .camera-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .camera-modal.active {
+        display: flex;
+    }
+    
+    .camera-content {
+        background: rgba(10, 14, 39, 0.95);
+        padding: 30px;
+        border-radius: 12px;
+        border: 2px solid #FC3D21;
+        max-width: 700px;
+        width: 90%;
+    }
+    
+    .camera-content h2 {
+        color: #FC3D21;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+    
+    .video-preview {
+        width: 100%;
+        max-width: 640px;
+        margin: 0 auto;
+        border: 2px solid rgba(252, 61, 33, 0.5);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #000;
+    }
+    
+    #cameraVideo {
+        width: 100%;
+        display: block;
+    }
+    
+    .camera-controls {
+        display: flex;
+        gap: 10px;
+        margin-top: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    
+    .camera-controls button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .btn-capture {
+        background: #4CAF50;
+        color: white;
+    }
+    
+    .btn-capture:hover {
+        background: #45a049;
+    }
+    
+    .btn-cancel {
+        background: #666;
+        color: white;
+    }
+    
+    .btn-cancel:hover {
+        background: #555;
+    }
+    
+    .photo-options {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .photo-options button {
+        flex: 1;
+        padding: 10px;
+        background: #2196F3;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+    }
+    
+    .photo-options button:hover {
+        background: #0b7dda;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -39,7 +144,11 @@
 
             <div class="form-group">
                 <label for="photo">Face Photo (for recognition) *</label>
-                <input type="file" id="photo" name="photo" accept="image/*" required>
+                <div class="photo-options">
+                    <button type="button" onclick="openCamera()">Use Camera</button>
+                    <button type="button" onclick="document.getElementById('photo').click()">Upload File</button>
+                </div>
+                <input type="file" id="photo" name="photo" accept="image/*" style="display: none;" required>
                 <p style="color: rgba(255, 255, 255, 0.5); font-size: 0.85rem; margin-top: 5px;">
                     Clear, front-facing photo with good lighting. Face should be clearly visible.
                 </p>
@@ -57,11 +166,29 @@
         </div>
     </div>
 </div>
+
+<!-- Camera Modal -->
+<div class="camera-modal" id="cameraModal">
+    <div class="camera-content">
+        <h2>📷 Capture Photo</h2>
+        <div class="video-preview">
+            <video id="cameraVideo" autoplay playsinline></video>
+            <canvas id="cameraCanvas" style="display: none;"></canvas>
+        </div>
+        <div class="camera-controls">
+            <button class="btn-capture" id="captureBtn">Capture Photo</button>
+            <button class="btn-cancel" id="cancelCameraBtn">Cancel</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_script %}
 <script>
-    // Preview photo before upload
+    let cameraStream = null;
+    let capturedPhotoBlob = null;
+
+    // File upload preview
     document.getElementById('photo').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -77,11 +204,85 @@
         }
     });
 
+    // Camera functions
+    function openCamera() {
+        const modal = document.getElementById('cameraModal');
+        const video = document.getElementById('cameraVideo');
+        
+        navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'user'
+            } 
+        })
+        .then(stream => {
+            cameraStream = stream;
+            video.srcObject = stream;
+            modal.classList.add('active');
+        })
+        .catch(err => {
+            showAlert('✗ Error accessing camera: ' + err.message, 'error');
+        });
+    }
+
+    document.getElementById('captureBtn').addEventListener('click', function() {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        const context = canvas.getContext('2d');
+        
+        // Set canvas size to video size
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        // Draw video frame to canvas
+        context.drawImage(video, 0, 0);
+        
+        // Convert to blob
+        canvas.toBlob(blob => {
+            capturedPhotoBlob = blob;
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const preview = document.getElementById('photoPreview');
+                preview.innerHTML = `
+                    <img src="${e.target.result}" alt="Captured Photo">
+                    <div class="file-info">Captured from camera</div>
+                `;
+            };
+            reader.readAsDataURL(blob);
+            
+            // Close camera modal
+            closeCamera();
+            
+            showAlert('✓ Photo captured successfully', 'success');
+        }, 'image/jpeg', 0.95);
+    });
+
+    document.getElementById('cancelCameraBtn').addEventListener('click', closeCamera);
+
+    function closeCamera() {
+        const modal = document.getElementById('cameraModal');
+        
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        
+        modal.classList.remove('active');
+    }
+
     // Submit form
     document.getElementById('astronautForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const formData = new FormData(this);
+        
+        // If we captured a photo, use that instead of file upload
+        if (capturedPhotoBlob) {
+            formData.set('photo', capturedPhotoBlob, 'captured_photo.jpg');
+        }
         
         try {
             const response = await fetch('/api/astronauts/add/', {
@@ -95,6 +296,7 @@
                 showAlert('✓ Astronaut added successfully! Face encoding registered.', 'success');
                 this.reset();
                 document.getElementById('photoPreview').innerHTML = '';
+                capturedPhotoBlob = null;
                 loadAstronauts();
             } else {
                 showAlert('✗ Error: ' + (data.message || 'Failed to add astronaut'), 'error');
@@ -115,10 +317,10 @@
             if (data.astronauts && data.astronauts.length > 0) {
                 grid.innerHTML = data.astronauts.map(astronaut => `
                     <div class="astronaut-card">
-                        <img src="${astronaut.photo_url || '/static/default-avatar.png'}" 
+                        <img src="${astronaut.photo_url || '/static/images/default-avatar.png'}" 
                              alt="${astronaut.name}" 
                              class="astronaut-photo"
-                             onerror="this.src='/static/default-avatar.png'">
+                             onerror="this.src='/static/images/default-avatar.png'">
                         <div class="astronaut-info">
                             <div class="astronaut-name">${astronaut.name}</div>
                             <div class="astronaut-id">${astronaut.astronaut_id}</div>
@@ -126,10 +328,9 @@
                                 ${astronaut.has_face_encoding ? '✓ Face Encoded' : '✗ No Encoding'}
                             </span>
                             <div class="card-actions">
-                                ${!astronaut.has_face_encoding ? 
-                                    `<button class="btn btn-secondary" onclick="updateFace(${astronaut.id})">Add Face</button>` : 
-                                    `<button class="btn btn-secondary" onclick="updateFace(${astronaut.id})">Update Face</button>`
-                                }
+                                <button class="btn btn-secondary" onclick="updateFace(${astronaut.id})">
+                                    ${astronaut.has_face_encoding ? 'Update Face' : 'Add Face'}
+                                </button>
                                 <button class="btn btn-secondary" onclick="deleteAstronaut(${astronaut.id})">Delete</button>
                             </div>
                         </div>
@@ -144,36 +345,85 @@
     }
 
     function updateFace(astronautId) {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = async function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        if (confirm('Choose how to update the face photo:')) {
+            const method = prompt('Type "camera" to use camera or "file" to upload a file:', 'camera');
+            
+            if (method === 'camera') {
+                openCameraForUpdate(astronautId);
+            } else if (method === 'file') {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async function(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
 
-            const formData = new FormData();
-            formData.append('photo', file);
-            formData.append('astronaut_id', astronautId);
-
-            try {
-                const response = await fetch('/api/astronauts/update-face/', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const data = await response.json();
-
-                if (data.success) {
-                    showAlert('✓ Face encoding updated successfully!', 'success');
-                    loadAstronauts();
-                } else {
-                    showAlert('✗ Error: ' + (data.message || 'Failed to update face'), 'error');
-                }
-            } catch (error) {
-                showAlert('✗ Connection error: ' + error.message, 'error');
+                    await uploadFaceUpdate(astronautId, file);
+                };
+                input.click();
             }
-        };
-        input.click();
+        }
+    }
+
+    async function openCameraForUpdate(astronautId) {
+        const modal = document.getElementById('cameraModal');
+        const video = document.getElementById('cameraVideo');
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                } 
+            });
+            
+            cameraStream = stream;
+            video.srcObject = stream;
+            modal.classList.add('active');
+            
+            // Replace capture button handler for update
+            const captureBtn = document.getElementById('captureBtn');
+            captureBtn.onclick = async function() {
+                const canvas = document.getElementById('cameraCanvas');
+                const context = canvas.getContext('2d');
+                
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0);
+                
+                canvas.toBlob(async blob => {
+                    closeCamera();
+                    await uploadFaceUpdate(astronautId, blob, 'captured_photo.jpg');
+                }, 'image/jpeg', 0.95);
+            };
+        } catch (err) {
+            showAlert('✗ Error accessing camera: ' + err.message, 'error');
+        }
+    }
+
+    async function uploadFaceUpdate(astronautId, photoFile, filename = null) {
+        const formData = new FormData();
+        formData.append('photo', photoFile, filename || photoFile.name);
+        formData.append('astronaut_id', astronautId);
+
+        try {
+            const response = await fetch('/api/astronauts/update-face/', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                showAlert('✓ Face encoding updated successfully!', 'success');
+                loadAstronauts();
+            } else {
+                showAlert('✗ Error: ' + (data.message || 'Failed to update face'), 'error');
+            }
+        } catch (error) {
+            showAlert('✗ Connection error: ' + error.message, 'error');
+        }
     }
 
     async function deleteAstronaut(astronautId) {

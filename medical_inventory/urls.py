@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
-
+from django.conf import settings
+from django.conf.urls.static import static
 app_name = 'medical_inventory'
 
 urlpatterns = [
@@ -27,6 +28,7 @@ urlpatterns = [
     # Admin Management Pages
     path('api/medications/restock/', views.restock_medication, name='restock_medication'),
     path('manage/astronauts/', views.manage_astronauts, name='manage_astronauts'),
+    path('manage/medications/', views.manage_medications, name='manage_medications'),
     
     # NEW: Warning System
     path('warnings/', views.warning_log_view, name='warning_log'),

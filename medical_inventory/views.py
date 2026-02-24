@@ -51,9 +51,33 @@ if os.name == 'nt':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
 from .forms import MedicationForm
+from sklearn.cluster import KMeans
 # Configuration
 ESP32_IP = getattr(settings, 'ESP32_IP_ADDRESS', '')
+# ============================================================================
+# LOGIN/LOGOUT VIEWS
+# ============================================================================
+def login_view(request):
+    """Login page for staff/admin users"""
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None and user.is_staff:
+            login(request, user)
+            next_url = request.GET.get('next', 'medical_inventory:home')
+            return redirect(next_url)
+        else:
+            messages.error(request, 'Invalid credentials or insufficient permissions')
+    
+    return render(request, 'login.html')
 
+
+def logout_view(request):
+    """Logout view"""
+    logout(request)
+    return redirect('medical_inventory:home')
 
 # ============================================================================
 # HOME AND AUTHENTICATION VIEWS
@@ -338,7 +362,7 @@ def medication_detail(request, medication_id):
 # ============================================================================
 # ASTRONAUT MANAGEMENT VIEWS
 # ============================================================================
-
+@login_required
 def manage_astronauts(request):
     """Astronaut management page"""
     return render(request, 'manage_astronauts.html')
@@ -601,7 +625,47 @@ def update_medication_image(request):
             })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
+@csrf_exempt
+@login_required
+def update_medication_quantity(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            medication_id = data.get('medication_id')
+            new_quantity = int(data.get('quantity'))
+            reason = data.get('reason', 'Manual adjustment')
 
+            medication = get_object_or_404(Medication, id=medication_id)
+            previous_quantity = medication.current_quantity
+            quantity_change = new_quantity - previous_quantity
+
+            medication.current_quantity = new_quantity
+            medication.save()
+
+            astronaut = request.user.astronaut if hasattr(request.user, 'astronaut') else None
+            InventoryLog.objects.create(
+                medication=medication,
+                log_type='ADJUSTMENT',
+                quantity_change=quantity_change,
+                previous_quantity=previous_quantity,
+                new_quantity=new_quantity,
+                performed_by=astronaut,
+                notes=reason
+            )
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Quantity updated successfully',
+                'new_quantity': new_quantity
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 @csrf_exempt
 def delete_medication(request, medication_id):
@@ -1104,128 +1168,89 @@ def esp32_dashboard(request):
 
 @csrf_exempt
 def checkout_medication(request):
-    """
-    Process medication checkout.
-    Unlock is attempted FIRST — quantity only decreases if the lock opens.
-    """
+    """Process medication checkout with transaction logging"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             astronaut_id = data.get('astronaut_id')
-            medications_data = data.get('medications', [])
-
+            medications = data.get('medications', [])
+            
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-
-            # Validate all medications and quantities BEFORE touching anything
-            validated = []
-            for med_data in medications_data:
+            checkouts_created = 0
+            # warnings_triggered = []
+            
+            for med_data in medications:
                 medication = get_object_or_404(Medication, id=med_data['medication_id'])
-                quantity = med_data.get('quantity', 1)
-
-                if quantity <= 0:
-                    return JsonResponse({
-                        'success': False,
-                        'message': f'Invalid quantity for {medication.name}'
-                    }, status=400)
-
+                quantity = med_data['quantity']
+                
+                # Check quantity available
                 if quantity > medication.current_quantity:
                     return JsonResponse({
                         'success': False,
-                        'message': f'Insufficient stock for {medication.name}. Available: {medication.current_quantity}'
+                        'message': f'Insufficient stock for {medication.name}'
                     }, status=400)
-
-                validated.append({
-                    'medication': medication,
-                    'quantity': quantity,
-                    'is_prescription': med_data.get('is_prescription', False)
-                })
-
-            # ----------------------------------------------------------------
-            # UNLOCK FIRST — only proceed if lock opens successfully
-            # ----------------------------------------------------------------
-            unlock_success = unlock_container(astronaut)
-
-            if not unlock_success:
-                # Lock failed — do NOT touch the database quantities
-                SystemLog.objects.create(
-                    event_type='CONTAINER_UNLOCK',
-                    astronaut=astronaut,
-                    description=f"Lock failed for {astronaut.name} — quantities unchanged",
-                    ip_address=request.META.get('REMOTE_ADDR')
-                )
-                return JsonResponse({
-                    'success': False,
-                    'unlock_status': False,
-                    'message': 'Could not unlock container. No medications were deducted from inventory.'
-                })
-
-            # ----------------------------------------------------------------
-            # Lock opened — now save checkouts and update quantities
-            # ----------------------------------------------------------------
-            checkouts_created = 0
-            warnings_triggered = []
-
-            for item in validated:
-                medication = item['medication']
-                quantity = item['quantity']
-
-                # Check thresholds and create warnings if needed
-                warning_created, severity = check_medication_threshold(astronaut, medication, quantity)
-                if warning_created:
-                    warnings_triggered.append({
-                        'medication': medication.name,
-                        'severity': severity
-                    })
-
-                # Create checkout record (this triggers quantity decrease via model's save())
+                
+                # Check thresholds
+                # warning_created, severity = check_medication_threshold(astronaut, medication, quantity)
+                # if warning_created:
+                #     warnings_triggered.append({
+                #         'medication': medication.name,
+                #         'severity': severity
+                #     })
+                
+                # Store previous quantity
+                previous_quantity = medication.current_quantity
+                
+                # Create checkout
                 MedicationCheckout.objects.create(
                     astronaut=astronaut,
                     medication=medication,
                     quantity=quantity,
-                    is_prescription=item['is_prescription']
+                    is_prescription=med_data.get('is_prescription', False)
                 )
-
-                # Log to InventoryLog
+                
+                # Medication.save() automatically updates quantity
+                # Now create inventory log
                 InventoryLog.objects.create(
                     medication=medication,
                     log_type='CHECKOUT',
                     quantity_change=-quantity,
-                    previous_quantity=medication.current_quantity + quantity,
+                    previous_quantity=previous_quantity,
                     new_quantity=medication.current_quantity,
                     performed_by=astronaut,
                     notes=f"Checkout by {astronaut.name}"
                 )
-
+                
                 checkouts_created += 1
-
+            
+            # Unlock container
+            unlock_success = send_esp32_unlock(astronaut)
+            
             SystemLog.objects.create(
                 event_type='CONTAINER_UNLOCK',
                 astronaut=astronaut,
-                description=f"Container unlocked for {astronaut.name}. {checkouts_created} medication(s) checked out.",
+                description=f"Checkout completed: {checkouts_created} medications dispensed",
                 ip_address=request.META.get('REMOTE_ADDR')
             )
-
+            
             response_data = {
                 'success': True,
                 'checkouts': checkouts_created,
-                'unlock_status': True,
-                'warnings': warnings_triggered
+                'unlock_status': unlock_success,
+                # 'warnings': warnings_triggered
             }
-
-            if warnings_triggered:
-                response_data['warning_message'] = (
-                    f"Warning: Excessive withdrawal detected for "
-                    f"{', '.join([w['medication'] for w in warnings_triggered])}"
-                )
-
+            
+            # if warnings_triggered:
+            #     response_data['warning_message'] = f"Warning: Excessive medication withdrawal detected for {', '.join([w['medication'] for w in warnings_triggered])}"
+            
             return JsonResponse(response_data)
-
+            
         except Exception as e:
             return JsonResponse({
                 'success': False,
                 'message': str(e)
             }, status=500)
-
+    
     return JsonResponse({'error': 'POST required'}, status=400)
 
 
@@ -1697,17 +1722,16 @@ def add_astronaut(request):
 
 @csrf_exempt
 def list_astronauts(request):
-    """List all astronauts"""
     astronauts = Astronaut.objects.all()
-    
+
     data = [{
         'id': a.id,
         'name': a.name,
         'astronaut_id': a.astronaut_id,
         'has_face_encoding': a.face_encoding is not None,
-        'photo_url': None  # We don't store photos, just encodings
+        'photo_url': a.photo.url if a.photo else None
     } for a in astronauts]
-    
+
     return JsonResponse({'astronauts': data})
 
 
@@ -1889,7 +1913,7 @@ def manage_astronauts(request):
     """Astronaut management page"""
     return render(request, 'manage_astronauts.html')
 
-
+@login_required
 def manage_medications(request):
     """Medication management page"""
     return render(request, 'manage_medications.html')
