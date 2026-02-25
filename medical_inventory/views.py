@@ -99,9 +99,11 @@ def authenticate_face(request):
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES.get('image')
-            image = face_recognition.load_image_file(image_file)
-            if len(image.shape) == 3 and image.shape[2] == 4:
-                image = image[:, :, :3]
+            from PIL import Image as PILImage
+            import numpy as np
+            pil_image = PILImage.open(image_file)
+            pil_image = pil_image.convert('RGB')
+            image = np.array(pil_image)
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
