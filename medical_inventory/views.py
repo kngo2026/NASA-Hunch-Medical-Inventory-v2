@@ -110,8 +110,7 @@ def authenticate_face(request):
             image = np.ascontiguousarray(image)
 
             face_detector = dlib.get_frontal_face_detector()
-            dlib_image = dlib.array_to_image(image)
-            detected_faces = face_detector(dlib_image, 1)
+            detected_faces = face_detector(image, 1)
 
             if not detected_faces:
                 SystemLog.objects.create(
