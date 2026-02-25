@@ -95,27 +95,19 @@ def lockscreen(request):
 
 @csrf_exempt
 def authenticate_face(request):
-    """Face authentication endpoint"""
+    """
+    Face authentication using HOG (fast) + num_jitters=3 (accurate enough).
+    Resizes image first for speed, strict threshold to avoid misidentification.
+    """
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES['image']
-            
-            # Read uploaded file bytes and decode with cv2 for robust format handling
-            image_file.seek(0)
-            file_bytes = np.frombuffer(image_file.read(), np.uint8)
-            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            
-            # cv2 loads as BGR, convert to RGB for face_recognition
-            if image is not None:
-                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
-                image = np.ascontiguousarray(image, dtype=np.uint8)
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Invalid image format. Please upload a valid image file.'
-                })
-            
+            image = face_recognition.load_image_file(image_file)
+            pil_img = Image.fromarray(image)
+            if pil_img.width > 640:
+                scale = 640 / pil_img.width
+                pil_img = pil_img.resize((640, int(pil_img.height * scale)))
+                image = np.array(pil_img)
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
@@ -128,41 +120,79 @@ def authenticate_face(request):
                     'success': False,
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
-            
-            face_encodings = face_recognition.face_encodings(image, face_locations)
+            face_encodings = face_recognition.face_encodings(
+                image, face_locations, num_jitters=2
+            )
+
             if not face_encodings:
                 return JsonResponse({
                     'success': False,
                     'message': 'Could not process face. Please try again.'
                 })
-            
-            astronauts = Astronaut.objects.exclude(face_encoding__isnull=True)
-            
+            astronauts = list(Astronaut.objects.exclude(face_encoding__isnull=True))
+
+            if not astronauts:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No registered users found in the system.'
+                })
+
+            known_encodings = [pickle.loads(a.face_encoding) for a in astronauts]
+
             for face_encoding in face_encodings:
-                for astronaut in astronauts:
-                    known_encoding = pickle.loads(astronaut.face_encoding)
-                    matches = face_recognition.compare_faces([known_encoding], face_encoding, tolerance=0.6)
-                    
-                    if matches[0]:
+                distances = face_recognition.face_distance(known_encodings, face_encoding)
+
+                best_index = int(distances.argmin())
+                best_distance = distances[best_index]
+
+                print(f"Best match: {astronauts[best_index].name}, distance: {best_distance:.4f}")
+                print(f"All distances: {[(astronauts[i].name, round(d, 4)) for i, d in enumerate(distances)]}")
+                THRESHOLD = 0.45
+
+                if best_distance > THRESHOLD:
+                    SystemLog.objects.create(
+                        event_type='AUTH_FAILURE',
+                        description=f"Face not recognized (best distance: {best_distance:.4f})",
+                        ip_address=request.META.get('REMOTE_ADDR')
+                    )
+                    return JsonResponse({
+                        'success': False,
+                        'message': 'Face not recognized. Please try again.'
+                    })
+                if len(distances) > 1:
+                    sorted_distances = sorted(distances)
+                    gap = sorted_distances[1] - sorted_distances[0]
+                    if gap < 0.08:
+                        print(f"Ambiguous match ΓÇö gap too small: {gap:.4f}")
                         SystemLog.objects.create(
-                            event_type='AUTH_SUCCESS',
-                            astronaut=astronaut,
-                            description=f"Astronaut {astronaut.name} successfully authenticated",
+                            event_type='AUTH_FAILURE',
+                            description=f"Ambiguous face match (gap: {gap:.4f})",
                             ip_address=request.META.get('REMOTE_ADDR')
                         )
-                        
                         return JsonResponse({
-                            'success': True,
-                            'astronaut_id': astronaut.id,
-                            'astronaut_name': astronaut.name
+                            'success': False,
+                            'message': 'Could not confidently identify face. Please try again.'
                         })
-            
-            SystemLog.objects.create(
-                event_type='AUTH_FAILURE',
-                description="Face not recognized - unknown individual",
-                ip_address=request.META.get('REMOTE_ADDR')
-            )
-            
+
+                # Success
+                astronaut = astronauts[best_index]
+                confidence = round((1 - best_distance) * 100, 1)
+
+                SystemLog.objects.create(
+                    event_type='AUTH_SUCCESS',
+                    astronaut=astronaut,
+                    description=f"Face authenticated: {astronaut.name} (confidence: {confidence}%, distance: {best_distance:.4f})",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+
+                return JsonResponse({
+                    'success': True,
+                    'astronaut_id': astronaut.id,
+                    'astronaut_name': astronaut.name,
+                    'confidence': confidence,
+                    'message': f'Welcome, {astronaut.name}!'
+                })
+
             return JsonResponse({
                 'success': False,
                 'message': 'Face not recognized. Please try again.'
@@ -461,21 +491,7 @@ def add_astronaut(request):
             )
             
             # Process face encoding
-            # Convert uploaded file bytes to numpy array using cv2 for robust format handling
-            photo.seek(0)
-            file_bytes = np.frombuffer(photo.read(), np.uint8)
-            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            
-            # cv2 loads as BGR, convert to RGB for face_recognition
-            if image is None:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Invalid image format. Please upload a valid image file.'
-                })
-            
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
-            image = np.ascontiguousarray(image, dtype=np.uint8)
+            image = face_recognition.load_image_file(photo)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -542,21 +558,8 @@ def update_astronaut_face(request):
             astronaut.photo = photo_base64
             
             # Process face encoding
-            # Convert uploaded file bytes to numpy array using cv2 for robust format handling
-            photo.seek(0)
-            file_bytes = np.frombuffer(photo.read(), np.uint8)
-            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
-            
-            # cv2 loads as BGR, convert to RGB for face_recognition
-            if image is None:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Invalid image format. Please upload a valid image file.'
-                })
-            
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
-            image = np.ascontiguousarray(image, dtype=np.uint8)
+            photo.seek(0)  # Reset file pointer again for face_recognition
+            image = face_recognition.load_image_file(photo)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
