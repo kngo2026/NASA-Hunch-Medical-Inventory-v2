@@ -110,6 +110,9 @@ def authenticate_face(request):
             pil_image.save(rgb_buffer, format='JPEG')
             rgb_buffer.seek(0)
             image = face_recognition.load_image_file(rgb_buffer)
+
+            print(f"Image shape: {image.shape}, dtype: {image.dtype}, min: {image.min()}, max: {image.max()}")
+
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
