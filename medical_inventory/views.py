@@ -101,9 +101,15 @@ def authenticate_face(request):
             image_file = request.FILES.get('image')
             from PIL import Image as PILImage
             import numpy as np
+            import io
+
             pil_image = PILImage.open(image_file)
-            pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+            rgb_buffer = io.BytesIO()
+            pil_image.save(rgb_buffer, format='JPEG')
+            rgb_buffer.seek(0)
+            image = face_recognition.load_image_file(rgb_buffer)
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
