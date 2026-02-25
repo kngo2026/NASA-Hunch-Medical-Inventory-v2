@@ -6,12 +6,14 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     gcc \
     g++ \
+    make \
     libglib2.0-0 \
     libsm6 \
     libxrender1 \
     libopenblas-dev \
     liblapack-dev \
     python3-dev \
+    tesseract-ocr \
     && pip install cmake==3.25.0 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -22,7 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN python manage.py collectstatic --noinput
+RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
 
