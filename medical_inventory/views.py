@@ -98,8 +98,8 @@ def authenticate_face(request):
     """Face authentication endpoint"""
     if request.method == 'POST' and request.FILES.get('image'):
         try:
-            image_file = request.FILES['image']
-            image = face_recognition.load_image_file(photo)
+            image_file = request.FILES.get('image')
+            image = face_recognition.load_image_file(image_file)
             if len(image.shape) == 3 and image.shape[2] == 4:
                 image = image[:, :, :3]
             face_locations = face_recognition.face_locations(image, model="hog")
