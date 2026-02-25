@@ -99,15 +99,19 @@ def authenticate_face(request):
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES.get('image')
-            from PIL import Image as PILImage
             import numpy as np
-            import dlib
+            import cv2
             import io
+            import dlib
+            image_bytes = image_file.read()
+            nparr = np.frombuffer(image_bytes, np.uint8)
+            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            image = np.ascontiguousarray(image, dtype=np.uint8)
 
-            pil_image = PILImage.open(image_file)
-            pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image, dtype=np.uint8)
-            image = np.ascontiguousarray(image)
+            print(f"CV2 image - shape: {image.shape}, dtype: {image.dtype}")
+            import sys
+            sys.stdout.flush()
 
             face_detector = dlib.get_frontal_face_detector()
             detected_faces = face_detector(image, 1)
@@ -122,22 +126,9 @@ def authenticate_face(request):
                     'success': False,
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
-
             face_locations = [(rect.top(), rect.right(), rect.bottom(), rect.left()) for rect in detected_faces]
             face_encodings = face_recognition.face_encodings(image, face_locations)
 
-            if not face_locations:
-                SystemLog.objects.create(
-                    event_type='AUTH_FAILURE',
-                    description="No face detected in image",
-                    ip_address=request.META.get('REMOTE_ADDR')
-                )
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
-                })
-            
-            face_encodings = face_recognition.face_encodings(image, face_locations)
             if not face_encodings:
                 return JsonResponse({
                     'success': False,
