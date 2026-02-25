@@ -98,25 +98,23 @@ def authenticate_face(request):
     """Face authentication endpoint"""
     if request.method == 'POST' and request.FILES.get('image'):
         try:
-            image_file = request.FILES.get('image')
-            import numpy as np
-            import cv2
-            import io
-            import dlib
-            image_bytes = image_file.read()
-            nparr = np.frombuffer(image_bytes, np.uint8)
-            image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            image = np.ascontiguousarray(image, dtype=np.uint8)
+            image_file = request.FILES['image']
+            
+            # Convert uploaded file to PIL Image, then to numpy array
+            # This ensures compatibility with face_recognition on all platforms including Railway
+            image_file.seek(0)
+            pil_image = Image.open(image_file)
+            
+            # Convert to RGB if necessary (handles RGBA, grayscale, etc.)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+            
+            # Convert PIL Image to numpy array for face_recognition
+            image = np.array(pil_image)
+            
+            face_locations = face_recognition.face_locations(image, model="hog")
 
-            print(f"CV2 image - shape: {image.shape}, dtype: {image.dtype}")
-            import sys
-            sys.stdout.flush()
-
-            face_detector = dlib.get_frontal_face_detector()
-            detected_faces = face_detector(image, 1)
-
-            if not detected_faces:
+            if not face_locations:
                 SystemLog.objects.create(
                     event_type='AUTH_FAILURE',
                     description="No face detected in image",
@@ -126,9 +124,8 @@ def authenticate_face(request):
                     'success': False,
                     'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
                 })
-            face_locations = [(rect.top(), rect.right(), rect.bottom(), rect.left()) for rect in detected_faces]
+            
             face_encodings = face_recognition.face_encodings(image, face_locations)
-
             if not face_encodings:
                 return JsonResponse({
                     'success': False,
@@ -168,8 +165,6 @@ def authenticate_face(request):
             })
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
             return JsonResponse({
                 'success': False,
                 'message': str(e)
@@ -462,9 +457,12 @@ def add_astronaut(request):
             )
             
             # Process face encoding
-            image = face_recognition.load_image_file(photo)
-            if len(image.shape) == 3 and image.shape[2] == 4:
-                image = image[:, :, :3]
+            # Convert uploaded file to PIL Image, then to numpy array for compatibility
+            photo.seek(0)
+            pil_image = Image.open(photo)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+            image = np.array(pil_image)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -531,10 +529,12 @@ def update_astronaut_face(request):
             astronaut.photo = photo_base64
             
             # Process face encoding
-            photo.seek(0)  # Reset file pointer again for face_recognition
-            image = face_recognition.load_image_file(photo)
-            if len(image.shape) == 3 and image.shape[2] == 4:
-                image = image[:, :, :3]
+            # Convert uploaded file to PIL Image, then to numpy array for compatibility
+            photo.seek(0)
+            pil_image = Image.open(photo)
+            if pil_image.mode != 'RGB':
+                pil_image = pil_image.convert('RGB')
+            image = np.array(pil_image)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
