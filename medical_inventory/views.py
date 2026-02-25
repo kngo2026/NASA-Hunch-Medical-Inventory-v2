@@ -101,22 +101,31 @@ def authenticate_face(request):
             image_file = request.FILES.get('image')
             from PIL import Image as PILImage
             import numpy as np
+            import dlib
             import io
 
             pil_image = PILImage.open(image_file)
             pil_image = pil_image.convert('RGB')
             image = np.array(pil_image, dtype=np.uint8)
+            image = np.ascontiguousarray(image)
 
-            print(f"BEFORE face_locations - shape: {image.shape}, dtype: {image.dtype}, contiguous: {image.flags['C_CONTIGUOUS']}")
-            import sys
-            sys.stdout.flush()
+            face_detector = dlib.get_frontal_face_detector()
+            dlib_image = dlib.array_to_image(image)
+            detected_faces = face_detector(dlib_image, 1)
 
-            if not image.flags['C_CONTIGUOUS']:
-                image = np.ascontiguousarray(image)
+            if not detected_faces:
+                SystemLog.objects.create(
+                    event_type='AUTH_FAILURE',
+                    description="No face detected in image",
+                    ip_address=request.META.get('REMOTE_ADDR')
+                )
+                return JsonResponse({
+                    'success': False,
+                    'message': 'No face detected. Please ensure your face is clearly visible and well-lit.'
+                })
 
-            print(f"AFTER contiguous check - shape: {image.shape}, dtype: {image.dtype}")
-            sys.stdout.flush()
-            face_locations = face_recognition.face_locations(image)
+            face_locations = [(rect.top(), rect.right(), rect.bottom(), rect.left()) for rect in detected_faces]
+            face_encodings = face_recognition.face_encodings(image, face_locations)
 
             if not face_locations:
                 SystemLog.objects.create(
