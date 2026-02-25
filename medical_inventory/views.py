@@ -99,7 +99,9 @@ def authenticate_face(request):
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES['image']
-            image = face_recognition.load_image_file(image_file)
+            image = face_recognition.load_image_file(photo)
+            if len(image.shape) == 3 and image.shape[2] == 4:
+                image = image[:, :, :3]
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
@@ -446,6 +448,8 @@ def add_astronaut(request):
             
             # Process face encoding
             image = face_recognition.load_image_file(photo)
+            if len(image.shape) == 3 and image.shape[2] == 4:
+                image = image[:, :, :3]
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -514,6 +518,8 @@ def update_astronaut_face(request):
             # Process face encoding
             photo.seek(0)  # Reset file pointer again for face_recognition
             image = face_recognition.load_image_file(photo)
+            if len(image.shape) == 3 and image.shape[2] == 4:
+                image = image[:, :, :3]
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
