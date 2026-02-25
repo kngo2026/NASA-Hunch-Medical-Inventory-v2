@@ -100,17 +100,19 @@ def authenticate_face(request):
         try:
             image_file = request.FILES['image']
             
-            # Convert uploaded file to PIL Image, then to numpy array
-            # This ensures compatibility with face_recognition on all platforms including Railway
+            # Read uploaded file bytes and decode with cv2 for robust format handling
             image_file.seek(0)
-            pil_image = Image.open(image_file)
+            file_bytes = np.frombuffer(image_file.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
             
-            # Convert to RGB if necessary (handles RGBA, grayscale, etc.)
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
-            
-            # Convert PIL Image to numpy array and ensure uint8 format
-            image = np.array(pil_image, dtype=np.uint8)
+            # cv2 loads as BGR, convert to RGB for face_recognition
+            if image is not None:
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid image format. Please upload a valid image file.'
+                })
             
             face_locations = face_recognition.face_locations(image, model="hog")
 
@@ -457,12 +459,19 @@ def add_astronaut(request):
             )
             
             # Process face encoding
-            # Convert uploaded file to PIL Image, then to numpy array for compatibility
+            # Convert uploaded file bytes to numpy array using cv2 for robust format handling
             photo.seek(0)
-            pil_image = Image.open(photo)
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image, dtype=np.uint8)
+            file_bytes = np.frombuffer(photo.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            
+            # cv2 loads as BGR, convert to RGB for face_recognition
+            if image is None:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid image format. Please upload a valid image file.'
+                })
+            
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -529,12 +538,19 @@ def update_astronaut_face(request):
             astronaut.photo = photo_base64
             
             # Process face encoding
-            # Convert uploaded file to PIL Image, then to numpy array for compatibility
+            # Convert uploaded file bytes to numpy array using cv2 for robust format handling
             photo.seek(0)
-            pil_image = Image.open(photo)
-            if pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image, dtype=np.uint8)
+            file_bytes = np.frombuffer(photo.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            
+            # cv2 loads as BGR, convert to RGB for face_recognition
+            if image is None:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Invalid image format. Please upload a valid image file.'
+                })
+            
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
