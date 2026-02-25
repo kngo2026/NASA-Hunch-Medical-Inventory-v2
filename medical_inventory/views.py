@@ -109,8 +109,8 @@ def authenticate_face(request):
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
             
-            # Convert PIL Image to numpy array for face_recognition
-            image = np.array(pil_image)
+            # Convert PIL Image to numpy array and ensure uint8 format
+            image = np.array(pil_image, dtype=np.uint8)
             
             face_locations = face_recognition.face_locations(image, model="hog")
 
@@ -462,7 +462,7 @@ def add_astronaut(request):
             pil_image = Image.open(photo)
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image)
+            image = np.array(pil_image, dtype=np.uint8)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -534,7 +534,7 @@ def update_astronaut_face(request):
             pil_image = Image.open(photo)
             if pil_image.mode != 'RGB':
                 pil_image = pil_image.convert('RGB')
-            image = np.array(pil_image)
+            image = np.array(pil_image, dtype=np.uint8)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
