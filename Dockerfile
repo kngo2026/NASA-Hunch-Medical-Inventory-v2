@@ -4,7 +4,6 @@ RUN apt-get update && apt-get install -y \
     libx11-6 \
     libxext6 \
     libgl1 \
-    cmake \
     gcc \
     g++ \
     libglib2.0-0 \
@@ -12,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     libxrender1 \
     libopenblas-dev \
     liblapack-dev \
+    python3-dev \
+    && pip install cmake==3.25.0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
