@@ -116,7 +116,7 @@ def authenticate_face(request):
 
             print(f"AFTER contiguous check - shape: {image.shape}, dtype: {image.dtype}")
             sys.stdout.flush()
-            face_locations = face_recognition.face_locations(image, model="hog")
+            face_locations = face_recognition.face_locations(image)
 
             if not face_locations:
                 SystemLog.objects.create(
