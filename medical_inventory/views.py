@@ -78,32 +78,6 @@ def logout_view(request):
     logout(request)
     return redirect('medical_inventory:home')
 
-# ============================================================================
-# LOGIN/LOGOUT VIEWS
-# ============================================================================
-
-def login_view(request):
-    """Login page for staff/admin users"""
-    if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        
-        if user is not None and user.is_staff:
-            login(request, user)
-            next_url = request.GET.get('next', 'medical_inventory:home')
-            return redirect(next_url)
-        else:
-            messages.error(request, 'Invalid credentials or insufficient permissions')
-    
-    return render(request, 'login.html')
-
-
-def logout_view(request):
-    """Logout view"""
-    logout(request)
-    return redirect('medical_inventory:home')
-
 
 # ============================================================================
 # HOME AND FACE AUTHENTICATION VIEWS
@@ -219,9 +193,9 @@ def checkout_medication(request):
             medications = data.get('medications', [])
             
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            checkouts_created = 0
-            # warnings_triggered = []
             
+            # First: Validate all medications and check stock availability
+            medication_list = []
             for med_data in medications:
                 medication = get_object_or_404(Medication, id=med_data['medication_id'])
                 quantity = med_data['quantity']
@@ -233,27 +207,38 @@ def checkout_medication(request):
                         'message': f'Insufficient stock for {medication.name}'
                     }, status=400)
                 
-                # Check thresholds
-                # warning_created, severity = check_medication_threshold(astronaut, medication, quantity)
-                # if warning_created:
-                #     warnings_triggered.append({
-                #         'medication': medication.name,
-                #         'severity': severity
-                #     })
-                
-                # Store previous quantity
-                previous_quantity = medication.current_quantity
+                medication_list.append({
+                    'medication': medication,
+                    'quantity': quantity,
+                    'is_prescription': med_data.get('is_prescription', False),
+                    'previous_quantity': medication.current_quantity
+                })
+            
+            # Second: Try to unlock the container BEFORE making any database changes
+            unlock_success = send_esp32_unlock(astronaut)
+            
+            if not unlock_success:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Failed to unlock medication container. Please try again.'
+                }, status=500)
+            
+            # Third: Only if unlock succeeds, create checkout records
+            checkouts_created = 0
+            for med_data in medication_list:
+                medication = med_data['medication']
+                quantity = med_data['quantity']
+                previous_quantity = med_data['previous_quantity']
                 
                 # Create checkout
                 MedicationCheckout.objects.create(
                     astronaut=astronaut,
                     medication=medication,
                     quantity=quantity,
-                    is_prescription=med_data.get('is_prescription', False)
+                    is_prescription=med_data['is_prescription']
                 )
                 
-                # Medication.save() automatically updates quantity
-                # Now create inventory log
+                # Create inventory log
                 InventoryLog.objects.create(
                     medication=medication,
                     log_type='CHECKOUT',
@@ -266,9 +251,6 @@ def checkout_medication(request):
                 
                 checkouts_created += 1
             
-            # Unlock container
-            unlock_success = send_esp32_unlock(astronaut)
-            
             SystemLog.objects.create(
                 event_type='CONTAINER_UNLOCK',
                 astronaut=astronaut,
@@ -276,17 +258,11 @@ def checkout_medication(request):
                 ip_address=request.META.get('REMOTE_ADDR')
             )
             
-            response_data = {
+            return JsonResponse({
                 'success': True,
                 'checkouts': checkouts_created,
-                'unlock_status': unlock_success,
-                # 'warnings': warnings_triggered
-            }
-            
-            # if warnings_triggered:
-            #     response_data['warning_message'] = f"Warning: Excessive medication withdrawal detected for {', '.join([w['medication'] for w in warnings_triggered])}"
-            
-            return JsonResponse(response_data)
+                'unlock_status': unlock_success
+            })
             
         except Exception as e:
             return JsonResponse({
@@ -364,6 +340,10 @@ def send_esp32_unlock(astronaut):
 
 def inventory_dashboard(request):
     """Inventory dashboard"""
+    # Check if user is authenticated
+    if not request.user.is_authenticated:
+        return redirect('/?alert=login_required')
+    
     medications = Medication.objects.all().order_by('name')
     total_medications = medications.count()
     low_stock_count = sum(1 for med in medications if med.is_low_stock)
@@ -423,14 +403,12 @@ def medication_detail(request, medication_id):
 # ASTRONAUT MANAGEMENT (PROTECTED)
 # ============================================================================
 
-@login_required
 def manage_astronauts(request):
     """Astronaut management page"""
     return render(request, 'manage_astronauts.html')
 
 
 @csrf_exempt
-@login_required
 def add_astronaut(request):
     """Add new astronaut with face encoding"""
     if request.method == 'POST':
@@ -455,12 +433,15 @@ def add_astronaut(request):
                 last_name=' '.join(name.split()[1:]) if len(name.split()) > 1 else ''
             )
             
-            # Create astronaut
+            # Create astronaut with base64 encoded photo
+            photo.seek(0)  # Reset file pointer
+            photo_base64 = base64.b64encode(photo.read()).decode('utf-8')
+            
             astronaut = Astronaut.objects.create(
                 user=user,
                 astronaut_id=astronaut_id,
                 name=name,
-                photo=photo
+                photo=photo_base64
             )
             
             # Process face encoding
@@ -503,14 +484,13 @@ def list_astronauts(request):
         'name': a.name,
         'astronaut_id': a.astronaut_id,
         'has_face_encoding': a.face_encoding is not None,
-        'photo_url': a.photo.url if a.photo else None
+        'photo_url': f'data:image/jpeg;base64,{a.photo}' if a.photo else None
     } for a in astronauts]
     
     return JsonResponse({'astronauts': data})
 
 
 @csrf_exempt
-@login_required
 def update_astronaut_face(request):
     """Update astronaut face encoding with camera capture option"""
     if request.method == 'POST':
@@ -526,10 +506,13 @@ def update_astronaut_face(request):
             
             astronaut = get_object_or_404(Astronaut, id=astronaut_id)
             
-            # Update photo
-            astronaut.photo = photo
+            # Update photo as base64
+            photo.seek(0)  # Reset file pointer
+            photo_base64 = base64.b64encode(photo.read()).decode('utf-8')
+            astronaut.photo = photo_base64
             
             # Process face encoding
+            photo.seek(0)  # Reset file pointer again for face_recognition
             image = face_recognition.load_image_file(photo)
             face_encodings = face_recognition.face_encodings(image)
             
@@ -557,7 +540,6 @@ def update_astronaut_face(request):
 
 
 @csrf_exempt
-@login_required
 def delete_astronaut(request, astronaut_id):
     """Delete astronaut"""
     if request.method == 'DELETE':
@@ -584,7 +566,6 @@ def delete_astronaut(request, astronaut_id):
 # MEDICATION MANAGEMENT (PROTECTED)
 # ============================================================================
 
-@login_required
 def manage_medications(request):
     """Medication management page"""
     return render(request, 'manage_medications.html')
@@ -625,7 +606,6 @@ def add_medication(request):
 
 
 @csrf_exempt
-@login_required
 def update_medication_quantity(request):
     """Update medication quantity (for authorized users)"""
     if request.method == 'POST':
@@ -658,6 +638,50 @@ def update_medication_quantity(request):
                 'success': True,
                 'message': 'Quantity updated successfully',
                 'new_quantity': new_quantity
+            })
+                
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
+@csrf_exempt
+def restock_medication(request):
+    """Restock medication (add inventory)"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            medication_id = data.get('medication_id')
+            quantity = int(data.get('quantity', 0))
+            expiration_date = data.get('expiration_date')
+            notes = data.get('notes', 'Restock')
+            
+            medication = get_object_or_404(Medication, id=medication_id)
+            previous_quantity = medication.current_quantity
+            
+            medication.current_quantity += quantity
+            medication.save()
+            
+            # Log the change
+            astronaut = request.user.astronaut if hasattr(request.user, 'astronaut') else None
+            InventoryLog.objects.create(
+                medication=medication,
+                log_type='RESTOCK',
+                quantity_change=quantity,
+                previous_quantity=previous_quantity,
+                new_quantity=medication.current_quantity,
+                performed_by=astronaut,
+                notes=notes
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Medication restocked successfully',
+                'new_quantity': medication.current_quantity
             })
                 
         except Exception as e:
@@ -724,60 +748,414 @@ def update_medication_image(request):
             })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+# ============================================================================
+# BOTTLE READING (OCR-based medication scanning)
+# ============================================================================
+class PillBottleReader:
+    
+    def __init__(self):
+        self.dosage_pattern = re.compile(r'(\d+\.?\d*)\s*(mg|mcg|g|ml|units?)', re.IGNORECASE)
+    
+    def preprocess_image(self, image_path):
+        """Enhanced preprocessing for maximum OCR accuracy"""
+        img = cv2.imread(image_path)
+        
+        # Resize if too large
+        height, width = img.shape[:2]
+        if width > 1920 or height > 1080:
+            scale = min(1920/width, 1080/height)
+            img = cv2.resize(img, None, fx=scale, fy=scale)
+        
+        # Convert to grayscale
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        
+        # Enhance contrast
+        clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+        
+        # Denoise
+        denoised = cv2.fastNlMeansDenoising(enhanced, h=15)
+        
+        # Sharpen
+        kernel_sharpen = np.array([[-1,-1,-1], [-1, 9,-1], [-1,-1,-1]])
+        sharpened = cv2.filter2D(denoised, -1, kernel_sharpen)
+        
+        # Binary threshold
+        _, binary = cv2.threshold(sharpened, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Clean up
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+        cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+        
+        # Scale up 2x for better OCR
+        scale_percent = 200
+        width_scaled = int(cleaned.shape[1] * scale_percent / 100)
+        height_scaled = int(cleaned.shape[0] * scale_percent / 100)
+        scaled = cv2.resize(cleaned, (width_scaled, height_scaled), interpolation=cv2.INTER_CUBIC)
+        
+        return scaled
+    
+    def extract_text_from_bottle(self, image_path):
+        """Extract text using multiple OCR methods"""
+        try:
+            processed_img = self.preprocess_image(image_path)
+            pil_img = Image.fromarray(processed_img)
+            
+            # Try multiple configs
+            configs = [
+                '--oem 3 --psm 6',
+                '--oem 3 --psm 11',
+                '--oem 1 --psm 6',
+            ]
+            
+            results = []
+            for config in configs:
+                try:
+                    text = pytesseract.image_to_string(pil_img, config=config)
+                    if text and len(text.strip()) > 0:
+                        results.append(text.strip())
+                except:
+                    continue
+            
+            # Also try original image
+            try:
+                original = cv2.imread(image_path)
+                gray_simple = cv2.cvtColor(original, cv2.COLOR_BGR2GRAY)
+                text_simple = pytesseract.image_to_string(gray_simple, config='--oem 3 --psm 6')
+                if text_simple:
+                    results.append(text_simple.strip())
+            except:
+                pass
+            
+            if not results:
+                return ""
+            
+            # Combine all results into one big text block
+            combined_text = '\n'.join(results)
+            
+            print("\n=== OCR EXTRACTED TEXT ===")
+            print(combined_text[:500])  # Print first 500 chars
+            print("=" * 50)
+            
+            return combined_text
+            
+        except Exception as e:
+            print(f"Error extracting text: {e}")
+            return ""
+    
+    def search_for_medications_in_text(self, text):
+        """Search OCR text for known medications from database"""
+        from .models import Medication
+        
+        if not text:
+            return []
+        
+        # Get ALL medications from database
+        all_medications = Medication.objects.all()
+        
+        if not all_medications.exists():
+            print("No medications in database to search for!")
+            return []
+        
+        # Clean the OCR text
+        text_clean = text.lower()
+        
+        # Remove extra whitespace
+        text_clean = ' '.join(text_clean.split())
+        
+        matches = []
+        
+        print(f"\n🔍 Searching for {all_medications.count()} medications in OCR text...")
+        
+        for med in all_medications:
+            # Search for medication name
+            med_name = med.name.lower().strip()
+            
+            # Also search generic name if it exists
+            generic_name = None
+            if hasattr(med, 'generic_name') and med.generic_name:
+                generic_name = med.generic_name.lower().strip()
+            
+            # Split into words for partial matching
+            name_words = med_name.split()
+            
+            # Calculate match score
+            score = 0
+            match_method = None
+            
+            # Method 1: Exact match (best)
+            if med_name in text_clean:
+                score = 95
+                match_method = "exact match"
+            
+            # Method 2: Generic name exact match
+            elif generic_name and generic_name in text_clean:
+                score = 90
+                match_method = "generic name exact"
+            
+            # Method 3: All words present (good)
+            elif len(name_words) > 1 and all(word in text_clean for word in name_words):
+                score = 85
+                match_method = "all words present"
+            
+            # Method 4: Main word present (for compound names)
+            elif len(name_words) > 1 and name_words[0] in text_clean:
+                # Main word is usually the first word (e.g., "PENICILLIN" in "Penicillin V")
+                score = 75
+                match_method = f"main word '{name_words[0]}'"
+            
+            # Method 5: Fuzzy match (okay)
+            else:
+                # Try fuzzy matching on each line
+                for line in text.split('\n'):
+                    line_clean = line.lower().strip()
+                    if len(line_clean) < 3:
+                        continue
+                    
+                    similarity = SequenceMatcher(None, med_name, line_clean).ratio()
+                    if similarity > 0.7:  # 70% similarity
+                        score = similarity * 70  # Max 70 for fuzzy
+                        match_method = f"fuzzy match ({similarity:.0%})"
+                        break
+            
+            if score > 0:
+                matches.append({
+                    'medication': med,
+                    'score': score,
+                    'method': match_method,
+                    'name': med.name
+                })
+                print(f"  ✓ Found: {med.name} (score: {score}, method: {match_method})")
+        
+        # Sort by score (highest first)
+        matches.sort(key=lambda x: x['score'], reverse=True)
+        
+        return matches
+    
+    def extract_dosage(self, text):
+        """Extract dosage from text"""
+        dosage_match = self.dosage_pattern.search(text)
+        if dosage_match:
+            return f"{dosage_match.group(1)} {dosage_match.group(2)}"
+        return None
+    
+    def process_bottle_image(self, image_path):
+        """Complete pipeline: OCR -> Search for known medications"""
+        # Extract text
+        raw_text = self.extract_text_from_bottle(image_path)
+        
+        if not raw_text or len(raw_text) < 3:
+            return {
+                'success': False,
+                'message': 'Could not read text from bottle. Please ensure the label is clearly visible and well-lit.',
+                'suggestions': [
+                    'Hold the bottle steady',
+                    'Ensure good lighting',
+                    'Avoid glare on the label',
+                    'Make sure text is in focus',
+                    'Try holding the bottle at different angles'
+                ]
+            }
+        
+        # Search for medications in the extracted text
+        matches = self.search_for_medications_in_text(raw_text)
+        
+        if not matches:
+            return {
+                'success': False,
+                'message': 'No medications from your inventory were found on this label.',
+                'raw_text': raw_text,
+                'suggestions': [
+                    'Make sure the medication is in your database first',
+                    'Try scanning the label more clearly',
+                    'Check that the medication name is visible in the camera'
+                ]
+            }
+        
+        # Use the best match
+        best_match = matches[0]
+        medication = best_match['medication']
+        
+        # Extract dosage from text
+        dosage = self.extract_dosage(raw_text)
+        
+        result = {
+            'success': True,
+            'raw_text': raw_text,
+            'medication_name': medication.name,
+            'dosage': dosage or (medication.dosage if hasattr(medication, 'dosage') else None),
+            'confidence': round(best_match['score'], 1),
+            'match_method': best_match['method'],
+            'database_match': {
+                'id': medication.id,
+                'name': medication.name,
+                'dosage': medication.dosage if hasattr(medication, 'dosage') else None,
+                'current_quantity': medication.current_quantity,
+                'match_confidence': round(best_match['score'], 1),
+                'exists_in_system': True
+            },
+            'inventory_location': None,
+            'all_matches': []  # Include other possible matches
+        }
+        
+        # Add all matches for reference
+        for match in matches[:3]:  # Top 3 matches
+            result['all_matches'].append({
+                'name': match['name'],
+                'score': round(match['score'], 1),
+                'method': match['method']
+            })
+        
+        # Get inventory location
+        if hasattr(medication, 'location') and medication.location:
+            result['inventory_location'] = medication.location
+        else:
+            result['inventory_location'] = "Location not set in system"
+        
+        print(f"\n FINAL RESULT: {medication.name} ({best_match['score']:.1f}% confidence)")
+        
+        return result
+def bottle_reading_page(request):
+    "Display bottle reader page for scanning medication bottles"
+    return render(request, 'bottle_reader.html')
+
+
 @csrf_exempt
-@login_required
-def update_medication_quantity(request):
+def read_pill_bottle(request):
+    """API endpoint for reading pill bottles using OCR and triggering unlock"""
+    if request.method == 'POST' and request.FILES.get('image'):
+        try:
+            image_file = request.FILES['image']
+            
+            # Save to TEMPORARY file (will be deleted immediately)
+            import tempfile
+            import os
+            
+            # Create temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
+                # Write uploaded image to temp file
+                for chunk in image_file.chunks():
+                    tmp_file.write(chunk)
+                temp_path = tmp_file.name
+            
+            try:
+                # Initialize reader
+                reader = PillBottleReader()
+                
+                # Process image
+                result = reader.process_bottle_image(temp_path)
+                
+                # If medication was successfully detected, unlock the container
+                if result.get('success') and result.get('database_match'):
+                    medication_name = result.get('medication_name', 'Unknown')
+                    
+                    print(f"\nAttempting to unlock container for: {medication_name}")
+                    
+                    # Send unlock command to ESP32
+                    unlock_success = send_esp32_unlock_for_bottle(medication_name)
+                    
+                    # Add unlock status to result
+                    result['unlock_status'] = unlock_success
+                    
+                    if unlock_success:
+                        print(f"Container unlocked successfully for {medication_name}")
+                        result['unlock_message'] = 'Container unlocked - you have 30 seconds to retrieve medication'
+                    else:
+                        print(f"Warning: Container unlock failed for {medication_name}")
+                        result['unlock_message'] = 'Warning: Container unlock failed - please try manually'
+                else:
+                    result['unlock_status'] = False
+                    result['unlock_message'] = 'Medication not found - container remains locked'
+                
+            finally:
+                # ALWAYS delete the temporary file
+                try:
+                    os.remove(temp_path)
+                    print(f"Temporary image deleted: {temp_path}")
+                except Exception as e:
+                    print(f"Could not delete temp file: {e}")
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            print(f"ERROR in read_pill_bottle: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            return JsonResponse({
+                'success': False,
+                'error': str(e),
+                'message': f'Error: {str(e)}',
+                'unlock_status': False
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'POST request with image file required',
+        'unlock_status': False
+    }, status=400)
+def send_esp32_unlock_for_bottle(medication_name):
+    """Send unlock command to ESP32 after bottle detection"""
+    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '192.168.1.53')
+    
+    try:
+        # Send unlock request to ESP32
+        response = requests.post(
+            f'http://{esp32_ip}/unlock',
+            json={
+                'username': 'Bottle Scanner',
+                'user_id': 'bottle_scan',
+                'medication': medication_name,
+                'timestamp': timezone.now().isoformat(),
+                'source': 'bottle_reader'
+            },
+            timeout=5
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            return data.get('success', False)
+        else:
+            print(f"ESP32 returned status code: {response.status_code}")
+            return False
+            
+    except requests.exceptions.RequestException as e:
+        print(f"Error communicating with ESP32: {e}")
+        return False
+
+
+
+@csrf_exempt
+def add_bottle_to_inventory(request):
+    "Add medication from bottle reading to inventory"
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            medication_id = data.get('medication_id')
-            new_quantity = int(data.get('quantity'))
-            reason = data.get('reason', 'Manual adjustment')
-
+            medication_id = request.POST.get('medication_id')
+            quantity_to_add = int(request.POST.get('quantity', 0))
+            
             medication = get_object_or_404(Medication, id=medication_id)
             previous_quantity = medication.current_quantity
-            quantity_change = new_quantity - previous_quantity
-
-            medication.current_quantity = new_quantity
+            
+            medication.current_quantity += quantity_to_add
             medication.save()
-
+            
+            # Log the transaction
             astronaut = request.user.astronaut if hasattr(request.user, 'astronaut') else None
             InventoryLog.objects.create(
                 medication=medication,
-                log_type='ADJUSTMENT',
-                quantity_change=quantity_change,
+                log_type='INTAKE',
+                quantity_change=quantity_to_add,
                 previous_quantity=previous_quantity,
-                new_quantity=new_quantity,
+                new_quantity=medication.current_quantity,
                 performed_by=astronaut,
-                notes=reason
+                notes='Added via bottle scanning'
             )
-
-            return JsonResponse({
-                'success': True,
-                'message': 'Quantity updated successfully',
-                'new_quantity': new_quantity
-            })
-
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-@csrf_exempt
-@login_required
-def delete_medication(request, medication_id):
-    """Delete medication"""
-    if request.method == 'DELETE':
-        try:
-            medication = get_object_or_404(Medication, id=medication_id)
-            medication.delete()
             
             return JsonResponse({
                 'success': True,
-                'message': 'Medication deleted successfully'
+                'message': f'Added {quantity_to_add} units to {medication.name}',
+                'new_quantity': medication.current_quantity
             })
         except Exception as e:
             return JsonResponse({
@@ -786,127 +1164,6 @@ def delete_medication(request, medication_id):
             })
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-# # ============================================================================
-# # WARNING LOG
-# # ============================================================================
-
-# @login_required
-# def warning_log_view(request):
-#     """View medication warnings"""
-#     warnings = WarningLog.objects.select_related('astronaut', 'medication', 'acknowledged_by').all()
-    
-#     # Filters
-#     severity = request.GET.get('severity')
-#     if severity:
-#         warnings = warnings.filter(severity=severity)
-    
-#     acknowledged = request.GET.get('acknowledged')
-#     if acknowledged == 'true':
-#         warnings = warnings.filter(acknowledged=True)
-#     elif acknowledged == 'false':
-#         warnings = warnings.filter(acknowledged=False)
-    
-#     # Export to CSV if requested
-#     if request.GET.get('export') == 'csv':
-#         return export_warnings_csv(warnings)
-    
-#     stats = {
-#         'total': warnings.count(),
-#         'acknowledged': warnings.filter(acknowledged=True).count(),
-#         'pending': warnings.filter(acknowledged=False).count(),
-#         'critical': warnings.filter(severity='CRITICAL').count(),
-#     }
-    
-#     return render(request, 'warning_log.html', {
-#         'warnings': warnings[:100],
-#         'stats': stats
-#     })
-
-
-# @login_required
-# @require_POST
-# def acknowledge_warning(request, warning_id):
-#     """Acknowledge a warning"""
-#     warning = get_object_or_404(WarningLog, id=warning_id)
-    
-#     astronaut, _ = Astronaut.objects.get_or_create(
-#         user=request.user,
-#         defaults={
-#             'name': request.user.get_full_name() or request.user.username,
-#             'astronaut_id': f'ADMIN_{request.user.id}'
-#         }
-#     )
-    
-#     warning.acknowledged = True
-#     warning.acknowledged_by = astronaut
-#     warning.acknowledged_at = timezone.now()
-#     warning.save()
-    
-#     messages.success(request, "Warning acknowledged successfully.")
-#     return redirect('medical_inventory:warning_log')
-
-
-# def export_warnings_csv(warnings):
-#     """Export warnings to CSV"""
-#     response = HttpResponse(content_type='text/csv')
-#     response['Content-Disposition'] = f'attachment; filename="warnings_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-    
-#     writer = csv.writer(response)
-#     writer.writerow([
-#         'Date', 'Time', 'Astronaut', 'Medication', 'Quantity', 
-#         'Severity', 'Message', 'Acknowledged', 'Acknowledged By', 'Acknowledged At'
-#     ])
-    
-#     for warning in warnings:
-#         writer.writerow([
-#             warning.timestamp.strftime('%Y-%m-%d'),
-#             warning.timestamp.strftime('%H:%M:%S'),
-#             warning.astronaut.name,
-#             warning.medication.name,
-#             warning.quantity_taken,
-#             warning.get_severity_display(),
-#             warning.warning_message,
-#             'Yes' if warning.acknowledged else 'No',
-#             warning.acknowledged_by.name if warning.acknowledged_by else '',
-#             warning.acknowledged_at.strftime('%Y-%m-%d %H:%M') if warning.acknowledged_at else ''
-#         ])
-    
-#     return response
-
-
-@login_required
-def export_medications_csv(request):
-    """Export medications to CSV"""
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = f'attachment; filename="medications_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
-    
-    writer = csv.writer(response)
-    writer.writerow([
-        'ID', 'Name', 'Generic Name', 'Type', 'Dosage', 'Description',
-        'Current Quantity', 'Minimum Quantity', 'Status', 'Location',
-        'Expiration Date', 'Has Image'
-    ])
-    
-    medications = Medication.objects.all()
-    for med in medications:
-        writer.writerow([
-            med.id,
-            med.name,
-            med.generic_name,
-            med.get_medication_type_display(),
-            med.dosage,
-            med.description,
-            med.current_quantity,
-            med.minimum_quantity,
-            med.get_status_display(),
-            med.container_location,
-            med.expiration_date.strftime('%Y-%m-%d') if med.expiration_date else '',
-            'Yes' if med.pill_image else 'No'
-        ])
-    
-    return response
 
 
 # ============================================================================
@@ -914,13 +1171,13 @@ def export_medications_csv(request):
 # ============================================================================
 
 def pill_recognition(request):
-    """Pill recognition page"""
+    "Pill recognition page"
     return render(request, 'pill_recognition.html')
 
 
 @csrf_exempt
 def recognize_pill(request):
-    """Pill recognition endpoint"""
+    "Pill recognition endpoint"
     if request.method == 'POST' and request.FILES.get('image'):
         return JsonResponse({
             'success': False,
@@ -930,290 +1187,9 @@ def recognize_pill(request):
     return JsonResponse({'error': 'No image provided'}, status=400)
 
 
-# ===== ADMIN API ENDPOINTS =====
-
-import base64
-@csrf_exempt
-def add_astronaut(request):
-    """Add new astronaut with face photo"""
-    if request.method == 'POST':
-        try:
-            name = request.POST.get('name')
-            astronaut_id = request.POST.get('astronaut_id')
-            password = request.POST.get('password', '')
-            photo = request.FILES.get('photo')
-            
-            if not all([name, astronaut_id, photo]):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Name, Astronaut ID, and photo are required'
-                })
-            
-            # Create user account
-            from django.contrib.auth.models import User
-            username = astronaut_id.lower()
-            user = User.objects.create_user(
-                username=username,
-                email=f"{username}@nasa.gov", 
-                password=password if password else astronaut_id
-            )
-            
-            # Create astronaut
-            astronaut = Astronaut.objects.create(
-                user=user,
-                astronaut_id=astronaut_id,
-                name=name,
-                photo = photo,
-                face_encoding = pickle.dumps(face_encodings[0]),
-            )
-            
-            # Process face encoding
-            image = face_recognition.load_image_file(photo)
-            face_encodings = face_recognition.face_encodings(image)
-            
-            if face_encodings:
-                astronaut.face_encoding = pickle.dumps(face_encodings[0])
-                photo.seek(0)  # Rewind file pointer after face_recognition consumed it
-                astronaut.photo = base64.b64encode(photo.read()).decode('utf-8')  # Save the actual photo as base64
-                astronaut.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Astronaut added successfully',
-                    'astronaut_id': astronaut.id
-                })
-            else:
-                astronaut.delete()
-                user.delete()
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected in photo. Please use a clear, front-facing photo.'
-                })
-                
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-@csrf_exempt
-def list_astronauts(request):
-    astronauts = Astronaut.objects.all()
-
-    data = [{
-        'id': a.id,
-        'name': a.name,
-        'astronaut_id': a.astronaut_id,
-        'has_face_encoding': a.face_encoding is not None,
-        # 'photo_url': a.photo.url if a.photo else None
-        'photo_url': 'data:image/jpeg;base64,' + a.photo if a.photo else None
-    } for a in astronauts]
-
-    return JsonResponse({'astronauts': data})
-
-
-@csrf_exempt
-def update_astronaut_face(request):
-    """Update astronaut face encoding"""
-    if request.method == 'POST':
-        try:
-            astronaut_id = request.POST.get('astronaut_id')
-            photo = request.FILES.get('photo')
-            
-            if not all([astronaut_id, photo]):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Astronaut ID and photo are required'
-                })
-            
-            astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            
-            # Process face encoding
-            image = face_recognition.load_image_file(photo)
-            face_encodings = face_recognition.face_encodings(image)
-            
-            if face_encodings:
-                astronaut.face_encoding = pickle.dumps(face_encodings[0])
-                astronaut.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Face encoding updated successfully'
-                })
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected in photo'
-                })
-                
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-@csrf_exempt
-def update_astronaut_face(request):
-    """Update astronaut face encoding"""
-    if request.method == 'POST':
-        try:
-            astronaut_id = request.POST.get('astronaut_id')
-            photo = request.FILES.get('photo')
-            
-            if not all([astronaut_id, photo]):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Astronaut ID and photo are required'
-                })
-            
-            astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            
-            # Process face encoding
-            image = face_recognition.load_image_file(photo)
-            face_encodings = face_recognition.face_encodings(image)
-            
-            if face_encodings:
-                astronaut.face_encoding = pickle.dumps(face_encodings[0])
-                astronaut.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': 'Face encoding updated successfully'
-                })
-            else:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'No face detected in photo'
-                })
-                
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-@csrf_exempt
-def delete_astronaut(request, astronaut_id):
-    """Delete astronaut"""
-    if request.method == 'DELETE':
-        try:
-            astronaut = get_object_or_404(Astronaut, id=astronaut_id)
-            user = astronaut.user
-            astronaut.delete()
-            user.delete()
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Astronaut deleted successfully'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-@csrf_exempt
-def add_medication(request):
-    """Add new medication with image"""
-    if request.method == 'POST':
-        try:
-            medication = Medication.objects.create(
-                name=request.POST.get('name'),
-                generic_name=request.POST.get('generic_name', ''),
-                medication_type=request.POST.get('medication_type'),
-                dosage=request.POST.get('dosage'),
-                description=request.POST.get('description', ''),
-                current_quantity=int(request.POST.get('current_quantity', 0)),
-                minimum_quantity=int(request.POST.get('minimum_quantity', 0)),
-                container_location=request.POST.get('container_location'),
-                expiration_date=request.POST.get('expiration_date') or None,
-                pill_image=request.FILES.get('pill_image')
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Medication added successfully',
-                'medication_id': medication.id
-            })
-                
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
-@csrf_exempt  
-def list_medications(request):
-    """List all medications"""
-    medications = Medication.objects.all()
-    
-    data = [{
-        'id': m.id,
-        'name': m.name,
-        'generic_name': m.generic_name,
-        'medication_type': m.get_medication_type_display(),
-        'dosage': m.dosage,
-        'current_quantity': m.current_quantity,
-        'minimum_quantity': m.minimum_quantity,
-        'container_location': m.container_location,
-        'expiration_date': m.expiration_date.strftime('%Y-%m-%d') if m.expiration_date else None,
-        'image_url': m.pill_image.url if m.pill_image else None
-    } for m in medications]
-    
-    return JsonResponse({'medications': data})
-
-
-@csrf_exempt
-def update_medication_image(request):
-    """Update medication image"""
-    if request.method == 'POST':
-        try:
-            medication_id = request.POST.get('medication_id')
-            image = request.FILES.get('image')
-            
-            if not all([medication_id, image]):
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Medication ID and image are required'
-                })
-            
-            medication = get_object_or_404(Medication, id=medication_id)
-            medication.pill_image = image
-            medication.save()
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Image updated successfully',
-                'image_url': medication.pill_image.url
-            })
-                
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'error': 'Invalid request'}, status=400)
-
-
 @csrf_exempt
 def delete_medication(request, medication_id):
-    """Delete medication"""
+    "Delete medication"
     if request.method == 'DELETE':
         try:
             medication = get_object_or_404(Medication, id=medication_id)
@@ -1232,46 +1208,14 @@ def delete_medication(request, medication_id):
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
 
-def manage_astronauts(request):
-    """Astronaut management page"""
-    return render(request, 'manage_astronauts.html')
-
-@login_required
-def manage_medications(request):
-    """Medication management page"""
-    return render(request, 'manage_medications.html')
-
-def inventory_dashboard(request):
-    medications = Medication.objects.all()
-    total_medications = medications.count()
-    low_stock_count = medications.filter(current_quantity__lte=10).count()
-    
-    context = {
-        'medications': medications,
-        'total_medications': total_medications,
-        'low_stock_count': low_stock_count,
-    }
-    return render(request, 'inventory_dashboard.html', context)
-
-def add_medication(request):
-    if request.method == 'POST':
-        form = MedicationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Medication added successfully!')
-            return redirect('medical_inventory:inventory_dashboard')
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = MedicationForm()
-    
-    return render(request, 'add_medication.html', {'form': form})
-
 def medication_inventory_graph(request):
+    "Medication inventory graph page"
     return render(request, 'medication_line_graph.html')
+
 
 @csrf_exempt
 def medication_history_api(request):
+    "Get medication history for graph"
     days = int(request.GET.get('days', 30))
     since = timezone.now() - timedelta(days=days) if days > 0 else None
 
@@ -1305,8 +1249,6 @@ def medication_history_api(request):
                 ]
             }
             continue
-
-        # Fill every date working backwards from current quantity
         log_map = {}
         for log in logs:
             log_map[log.timestamp.date()] = log.new_quantity

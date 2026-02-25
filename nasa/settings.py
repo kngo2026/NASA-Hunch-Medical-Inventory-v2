@@ -111,6 +111,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Authentication
+LOGIN_URL = 'medical_inventory:login'
+LOGIN_REDIRECT_URL = 'medical_inventory:home'
 
 ESP32_IP_ADDRESS = '192.168.1.53'
 ESP32_SERIAL_PORT = 'COM3'

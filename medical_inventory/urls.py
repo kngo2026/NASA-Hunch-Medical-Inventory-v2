@@ -20,7 +20,7 @@ urlpatterns = [
     
     # Inventory pages
     path('inventory/', views.inventory_dashboard, name='inventory_dashboard'),
-     path('<int:medication_id>/', views.medication_detail, name='medication_detail'),
+    path('inventory/<int:medication_id>/', views.medication_detail, name='medication_detail'),
     path('add/', views.add_medication, name='add_medication'),
     # path('inventory/<int:medication_id>/', views.medication_detail, name='medication_detail'),
     # path('<int:id>/', views.medication_detail, name='medication_detail'),
@@ -55,6 +55,7 @@ urlpatterns = [
     path('api/medications/list/', views.list_medications, name='list_medications'),
     path('api/medications/update-image/', views.update_medication_image, name='update_medication_image'),
     path('api/medications/update-quantity/', views.update_medication_quantity, name='update_medication_quantity'),
+    path('api/medications/restock/', views.restock_medication, name='restock_medication'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
     
     path('inventory/graph/', views.medication_inventory_graph, name='inventory_graph'),
