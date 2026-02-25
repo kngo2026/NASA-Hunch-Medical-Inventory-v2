@@ -482,66 +482,54 @@
     }
 
     function displayResults(data) {
-        resultsSection.classList.add('show');
-
-        document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
-        document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
-
-        const matchInfo = document.getElementById('matchInfo');
-        const locationCard = document.getElementById('locationCard');
-        const notFoundCard = document.getElementById('notFoundCard');
-        const locationValue = document.getElementById('locationValue');
-        const locationSubtext = document.getElementById('locationSubtext');
-
-        if (data.database_match && data.database_match.exists_in_system) {
-            // Found in database
-            matchInfo.style.display = 'block';
-            locationCard.style.display = 'block';
-            notFoundCard.style.display = 'none';
-
-            document.getElementById('dbName').textContent = data.database_match.name;
-            document.getElementById('dbDosage').textContent = data.database_match.dosage || 'Not specified';
-            document.getElementById('dbQuantity').textContent = data.database_match.current_quantity + ' units';
-            document.getElementById('matchConfidence').textContent = `${data.database_match.match_confidence}%`;
-
-            // Display location
-            const location = data.inventory_location || 'Location not set';
-            locationValue.textContent = location;
-
-            if (location === 'Location not set in system' || location === 'Location not set') {
-                locationSubtext.textContent = 'Please set a location in the inventory system';
-                locationValue.style.color = '#FFC107';
-                locationCard.style.borderColor = '#FFC107';
-                locationCard.style.background = 'rgba(255, 193, 7, 0.1)';
-            } else {
-                locationSubtext.textContent = `Go to this location to retrieve ${data.medication_name}`;
-                locationValue.style.color = '#FC3D21';
-                locationCard.style.borderColor = '#FC3D21';
-                locationCard.style.background = 'rgba(252, 61, 33, 0.1)';
-            }
-
-            // Unlock status
-            if (data.unlock_status === true) {
-                showStatus('Container unlocked! You have 30 seconds to retrieve medication.', 'success');
-            }
-
-            document.getElementById('addToInventory').style.display = 'none';
-
+    resultsSection.classList.add('show');
+    
+    document.getElementById('medicationName').textContent = data.medication_name || 'Unknown Medication';
+    document.getElementById('confidenceBadge').textContent = `${data.confidence}% confidence`;
+    
+    const matchInfo = document.getElementById('matchInfo');
+    const locationCard = document.getElementById('locationCard');
+    const notFoundCard = document.getElementById('notFoundCard');
+    
+    if (data.database_match && data.database_match.exists_in_system) {
+        matchInfo.style.display = 'block';
+        locationCard.style.display = 'block';
+        notFoundCard.style.display = 'none';
+        
+        document.getElementById('dbName').textContent = data.database_match.name;
+        document.getElementById('dbDosage').textContent = data.database_match.dosage || 'Not specified';
+        document.getElementById('dbQuantity').textContent = data.database_match.current_quantity + ' units';
+        document.getElementById('matchConfidence').textContent = `${data.database_match.match_confidence}%`;
+        
+        const location = data.inventory_location || 'Location not set';
+        document.getElementById('locationValue').textContent = location;
+        
+        if (location === 'Location not set in system' || location === 'Location not set') {
+            document.getElementById('locationSubtext').textContent = 'Please set location in inventory system';
+            document.getElementById('locationValue').style.color = '#FFC107';
         } else {
-            // Not found in database
-            matchInfo.style.display = 'none';
-            locationCard.style.display = 'none';
-            notFoundCard.style.display = 'block';
-
-            document.getElementById('detectedName').textContent = data.medication_name || 'Unknown';
-            document.getElementById('addToInventory').style.display = 'inline-block';
+            document.getElementById('locationSubtext').textContent = `Go to this location to find ${data.medication_name}`;
+            document.getElementById('locationValue').style.color = '#FC3D21';
         }
-
-        // Raw OCR text
-        if (data.raw_text) {
-            document.getElementById('rawText').textContent = data.raw_text;
+        
+        if (data.unlock_status === true) {
+            showStatus('Container unlocked! You have 30 seconds to retrieve medication.', 'success');
+        } else if (data.unlock_status === false && data.unlock_message) {
+            showStatus(data.unlock_message, 'warning');
         }
+        
+    } else {
+        matchInfo.style.display = 'none';
+        locationCard.style.display = 'none';
+        notFoundCard.style.display = 'block';
+        
+        document.getElementById('detectedName').textContent = data.medication_name;
+        
+        showStatus('Medication not in database - container remains locked', 'warning');
     }
+    
+    document.getElementById('rawText').textContent = data.raw_text || 'No text extracted';
+}
 
     function showStatus(message, type) {
         statusMessage.textContent = message;

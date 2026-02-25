@@ -1008,8 +1008,8 @@ class PillBottleReader:
             })
         
         # Get inventory location
-        if hasattr(medication, 'location') and medication.location:
-            result['inventory_location'] = medication.location
+        if hasattr(medication, 'container_location') and medication.container_location:
+            result['inventory_location'] = medication.container_location
         else:
             result['inventory_location'] = "Location not set in system"
         
@@ -1027,35 +1027,22 @@ def read_pill_bottle(request):
     if request.method == 'POST' and request.FILES.get('image'):
         try:
             image_file = request.FILES['image']
-            
-            # Save to TEMPORARY file (will be deleted immediately)
             import tempfile
             import os
             
-            # Create temporary file
             with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as tmp_file:
-                # Write uploaded image to temp file
                 for chunk in image_file.chunks():
                     tmp_file.write(chunk)
                 temp_path = tmp_file.name
             
             try:
-                # Initialize reader
                 reader = PillBottleReader()
-                
-                # Process image
                 result = reader.process_bottle_image(temp_path)
-                
-                # If medication was successfully detected, unlock the container
                 if result.get('success') and result.get('database_match'):
                     medication_name = result.get('medication_name', 'Unknown')
                     
                     print(f"\nAttempting to unlock container for: {medication_name}")
-                    
-                    # Send unlock command to ESP32
                     unlock_success = send_esp32_unlock_for_bottle(medication_name)
-                    
-                    # Add unlock status to result
                     result['unlock_status'] = unlock_success
                     
                     if unlock_success:
@@ -1069,7 +1056,6 @@ def read_pill_bottle(request):
                     result['unlock_message'] = 'Medication not found - container remains locked'
                 
             finally:
-                # ALWAYS delete the temporary file
                 try:
                     os.remove(temp_path)
                     print(f"Temporary image deleted: {temp_path}")
