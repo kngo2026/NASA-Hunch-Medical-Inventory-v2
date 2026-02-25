@@ -108,6 +108,8 @@ def authenticate_face(request):
             # cv2 loads as BGR, convert to RGB for face_recognition
             if image is not None:
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
+                image = np.ascontiguousarray(image, dtype=np.uint8)
             else:
                 return JsonResponse({
                     'success': False,
@@ -472,6 +474,8 @@ def add_astronaut(request):
                 })
             
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
+            image = np.ascontiguousarray(image, dtype=np.uint8)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
@@ -551,6 +555,8 @@ def update_astronaut_face(request):
                 })
             
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # Ensure image is uint8 type and contiguous (required by dlib/face_recognition)
+            image = np.ascontiguousarray(image, dtype=np.uint8)
             face_encodings = face_recognition.face_encodings(image)
             
             if face_encodings:
