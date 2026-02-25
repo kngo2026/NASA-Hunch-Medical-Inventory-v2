@@ -65,7 +65,9 @@ PORT = os.getenv('DB_PORT')
 NAME = os.getenv('DB_NAME')
 USER = os.getenv('DB_USER')
 PASSWORD = os.getenv('DB_PASSWORD')
-
+CSRF_TRUSTED_ORIGINS = ['https://nasa-hunch-medical-inventory-v2-production.up.railway.app']
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
 
 DATABASES = {
     'default': {
