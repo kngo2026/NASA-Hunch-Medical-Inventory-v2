@@ -374,7 +374,7 @@ def medication_detail(request, medication_id):
     # Get transaction log (inventory logs)
     inventory_logs = InventoryLog.objects.filter(
         medication=medication
-    ).order_by('-timestamp')[:50]  # Last 50 transactions
+    ).order_by('-timestamp')[:50]
     
     daily_usage = MedicationCheckout.objects.filter(
         medication=medication,

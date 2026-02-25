@@ -3,7 +3,7 @@ FROM python:3.10-slim
 RUN apt-get update && apt-get install -y \
     libx11-6 \
     libxext6 \
-    libgl1-mesa-glx \
+    libgl1 \
     cmake \
     gcc \
     g++ \
