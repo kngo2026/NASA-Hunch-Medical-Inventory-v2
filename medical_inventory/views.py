@@ -163,6 +163,8 @@ def authenticate_face(request):
             })
 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return JsonResponse({
                 'success': False,
                 'message': str(e)
