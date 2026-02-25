@@ -106,7 +106,16 @@ def authenticate_face(request):
             pil_image = PILImage.open(image_file)
             pil_image = pil_image.convert('RGB')
             image = np.array(pil_image, dtype=np.uint8)
-            print(f"Image shape: {image.shape}, dtype: {image.dtype}")
+
+            print(f"BEFORE face_locations - shape: {image.shape}, dtype: {image.dtype}, contiguous: {image.flags['C_CONTIGUOUS']}")
+            import sys
+            sys.stdout.flush()
+
+            if not image.flags['C_CONTIGUOUS']:
+                image = np.ascontiguousarray(image)
+
+            print(f"AFTER contiguous check - shape: {image.shape}, dtype: {image.dtype}")
+            sys.stdout.flush()
             face_locations = face_recognition.face_locations(image, model="hog")
 
             if not face_locations:
