@@ -998,16 +998,12 @@ class PillBottleReader:
             'inventory_location': None,
             'all_matches': []  # Include other possible matches
         }
-        
-        # Add all matches for reference
-        for match in matches[:3]:  # Top 3 matches
+        for match in matches[:3]:
             result['all_matches'].append({
                 'name': match['name'],
                 'score': round(match['score'], 1),
                 'method': match['method']
             })
-        
-        # Get inventory location
         if hasattr(medication, 'container_location') and medication.container_location:
             result['inventory_location'] = medication.container_location
         else:
