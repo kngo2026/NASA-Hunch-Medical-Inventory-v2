@@ -468,6 +468,36 @@ def medication_detail(request, medication_id):
     
     return render(request, 'medication_detail.html', context)
 
+def export_inventory_csv(request):
+    """Export full inventory to CSV"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        f'attachment; filename="inventory_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow([
+        'ID', 'Name', 'Generic Name', 'Type', 'Dosage',
+        'Current Quantity', 'Minimum Quantity', 'Status',
+        'Location', 'Expiration Date', 'Has Image'
+    ])
+
+    for med in Medication.objects.all().order_by('name'):
+        writer.writerow([
+            med.id,
+            med.name,
+            med.generic_name,
+            med.get_medication_type_display(),
+            med.dosage,
+            med.current_quantity,
+            med.minimum_quantity,
+            med.get_status_display(),
+            med.container_location,
+            med.expiration_date.strftime('%Y-%m-%d') if med.expiration_date else '',
+            'Yes' if med.pill_image else 'No',
+        ])
+
+    return response
 
 # ============================================================================
 # ASTRONAUT MANAGEMENT (PROTECTED)

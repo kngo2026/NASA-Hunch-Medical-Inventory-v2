@@ -23,6 +23,7 @@ urlpatterns = [
     path('inventory/<int:medication_id>/', views.medication_detail, name='medication_detail'),
     path('add/', views.add_medication, name='add_medication'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
+    path('inventory/export/', views.export_inventory_csv, name='export_inventory_csv'),
     # path('inventory/<int:medication_id>/', views.medication_detail, name='medication_detail'),
     # path('<int:id>/', views.medication_detail, name='medication_detail'),
     # path('inventory/add/', views.add_medication, name='add_medication'),
