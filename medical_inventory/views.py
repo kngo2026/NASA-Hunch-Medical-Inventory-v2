@@ -490,6 +490,7 @@ def delete_medication(request, medication_id):
    
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
+
 def inventory_dashboard(request):
     """Inventory dashboard"""
     # Check if user is authenticated
