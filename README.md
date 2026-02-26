@@ -89,7 +89,7 @@ This project is part of the NASA HUNCH (High School Students United with NASA to
 <br>
 <img width="1416" height="698" alt="Screenshot 2026-02-24 203701" src="https://github.com/user-attachments/assets/e2c19cbd-3877-4755-80a3-3f278231dbd5" />
 <br>
-<img width="1416" height="849" alt="Screenshot 2026-02-24 203733" src="https://github.com/user-attachments/assets/221ab333-368b-4227-8ac2-b69503cb7c9b" />
+<img width="2560" height="1600" alt="Screenshot (75)" src="https://github.com/user-attachments/assets/4f27c8fb-0fc5-4fcd-8286-397483edb856" />
 <br>
 <img width="1258" height="558" alt="Screenshot 2026-02-24 203807" src="https://github.com/user-attachments/assets/bc9858f9-e545-4b94-b6eb-e8ebdd180c46" />
 
@@ -97,4 +97,3 @@ This project is part of the NASA HUNCH (High School Students United with NASA to
 ## License
 
 MIT License - See LICENSE file for details
-
