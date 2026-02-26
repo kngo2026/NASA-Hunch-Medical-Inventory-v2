@@ -56,6 +56,8 @@ ESP32_IP = getattr(settings, 'ESP32_IP_ADDRESS', '')
 # ============================================================================
 # LOGIN/LOGOUT VIEWS
 # ============================================================================
+
+
 def login_view(request):
     """Login page for staff/admin users"""
     if request.method == 'POST':
@@ -383,6 +385,28 @@ def send_esp32_unlock(astronaut):
 # ============================================================================
 # INVENTORY VIEWS
 # ============================================================================
+
+@csrf_exempt
+def delete_medication(request, medication_id):
+    """Delete medication"""
+    if request.method == 'DELETE':
+        try:
+            medication = get_object_or_404(Medication, id=medication_id)
+            # Delete related logs first to avoid foreign key constraint error
+            InventoryLog.objects.filter(medication=medication).delete()
+            medication.delete()
+           
+            return JsonResponse({
+                'success': True,
+                'message': 'Medication deleted successfully'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+   
+    return JsonResponse({'error': 'Invalid request'}, status=400)
 
 def inventory_dashboard(request):
     """Inventory dashboard"""
