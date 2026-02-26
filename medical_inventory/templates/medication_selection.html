@@ -311,14 +311,14 @@
             } else {
                 document.getElementById('modalTitle').textContent = 'Lock Failed';
                 document.getElementById('modalSpinner').style.display = 'none';
-                document.getElementById('modalMessage').textContent = (data.message || 'Could not unlock container. No medications were deducted.') + ' Reloading...';
-                setTimeout(() => location.reload(), 3000);
+                document.getElementById('modalMessage').textContent = (data.message || 'Could not unlock container. No medications were deducted.') + ' Returning to home...';
+                setTimeout(() => window.location.href = '/', 3000);
             }
         } catch (error) {
             document.getElementById('modalTitle').textContent = 'Lock Failed';
             document.getElementById('modalSpinner').style.display = 'none';
-            document.getElementById('modalMessage').textContent = (error.message || 'Could not unlock container.') + ' Reloading...';
-            setTimeout(() => location.reload(), 3000);
+            document.getElementById('modalMessage').textContent = (error.message || 'Could not unlock container.') + ' Returning to home...';
+            setTimeout(() => window.location.href = '/', 3000);
         }
     }
 </script>

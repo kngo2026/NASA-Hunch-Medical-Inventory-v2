@@ -145,7 +145,7 @@
             <div class="form-group">
                 <label for="photo">Face Photo (for recognition) *</label>
                 <div class="photo-options">
-                    <button type="button" onclick="openCamera()">Use Camera</button>
+                    {% comment %} <button type="button" onclick="openCamera()">Use Camera</button> {% endcomment %}
                     <button type="button" onclick="document.getElementById('photo').click()">Upload File</button>
                 </div>
                 <input type="file" id="photo" name="photo" accept="image/*" style="display: none;" required>
@@ -328,9 +328,9 @@
                                 ${astronaut.has_face_encoding ? '✓ Face Encoded' : '✗ No Encoding'}
                             </span>
                             <div class="card-actions">
-                                <button class="btn btn-secondary" onclick="updateFace(${astronaut.id})">
+                                {% comment %} <button class="btn btn-secondary" onclick="updateFace(${astronaut.id})">
                                     ${astronaut.has_face_encoding ? 'Update Face' : 'Add Face'}
-                                </button>
+                                </button> {% endcomment %}
                                 <button class="btn btn-secondary" onclick="deleteAstronaut(${astronaut.id})">Delete</button>
                             </div>
                         </div>

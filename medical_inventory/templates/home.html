@@ -32,4 +32,14 @@
         <p>AI-powered medication identification for sorting</p>
     </a>
 </div>
+
+<script>
+    // Check for login required alert
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('alert') === 'login_required') {
+        alert('You need to be logged in to access the inventory dashboard.');
+        // Remove the query parameter from URL
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+</script>
 {% endblock %}

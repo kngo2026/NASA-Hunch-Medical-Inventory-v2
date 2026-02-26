@@ -22,7 +22,8 @@
                 <li><a href="{% url 'medical_inventory:home' %}" {% if request.path == '/' %}class="active"{% endif %}>Home</a></li>
                 <li><a href="{% url 'medical_inventory:lockscreen' %}" {% if 'lockscreen' in request.path %}class="active"{% endif %}>Access System</a></li>
                 <li><a href="{% url 'medical_inventory:inventory_dashboard' %}" {% if 'inventory' in request.path %}class="active"{% endif %}>Inventory</a></li>
-                <li><a href="{% url 'medical_inventory:bottle_reader' %}" {% if 'bottle-reader' in request.path %}class="active"{% endif %}>Bottle Reader</a></li>
+                {% comment %} <li><a href="{% url 'medical_inventory:warning_log' %}" {% if 'warning_log' in request.path %}class="active"{% endif %}>Warning Log</a></li> {% endcomment %}
+                <li><a href="{% url 'medical_inventory:bottle_reader' %}" {% if 'bottle-reader' in request.path %}class="active"{% endif %}>Bottle Recognition</a></li>
                 <li><a href="{% url 'medical_inventory:manage_astronauts' %}" {% if 'manage/astronauts' in request.path %}class="active"{% endif %}>Astronauts</a></li>
                 {% if user.is_authenticated %}
                 <li><a href="{% url 'medical_inventory:logout' %}">Logout</a></li>
