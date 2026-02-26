@@ -118,7 +118,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = 'medical_inventory:login'
 LOGIN_REDIRECT_URL = 'medical_inventory:home'
 
-ESP32_IP_ADDRESS = ''
+ESP32_IP_ADDRESS = '192.168.25.44'
 ESP32_SERIAL_PORT = 'COM3'
 ESP32_BAUD_RATE = 115200
 CAMERA_INDEX = int(os.getenv('CAMERA_INDEX', '0'))

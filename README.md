@@ -95,4 +95,3 @@ This project is part of the NASA HUNCH (High School Students United with NASA to
 ## License
 
 MIT License - See LICENSE file for details
-
