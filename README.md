@@ -18,6 +18,8 @@ School: Bergen County Technical High School - Teterboro Campus
 - Arduino ESP32 Development Board
 - 12V DC Solenoid Lock
 - Facial Recognition Python Project (1.3.0)
+- Opencv
+- Tensorflow
 - Tesseract OCR
 
 ## Features
