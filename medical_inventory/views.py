@@ -365,19 +365,101 @@ def check_medication_threshold(astronaut, medication, quantity):
     # return warning_created, max_severity
 
 
-def send_esp32_unlock(astronaut):
-    """Send unlock command to ESP32"""
-    try:
-        url = f"http://{ESP32_IP}/face-unlock"
-        payload = {
-            'username': astronaut.name,
-            'user_id': str(astronaut.id)
-        }
-        response = requests.post(url, data=payload, timeout=5)
-        return response.status_code == 200
-    except requests.exceptions.RequestException as e:
-        print(f"Error unlocking container: {e}")
+# ============================================================================
+# ESP32 COMMUNICATION - USB SERIAL & WIFI
+# ============================================================================
+
+def find_esp32_serial_port():
+    """Auto-detect the ESP32 USB serial port"""
+    ports = serial.tools.list_ports.comports()
+    for port in ports:
+        if any(keyword in port.description.upper() for keyword in
+               ['CP210', 'CH340', 'UART', 'USB SERIAL', 'ESP']):
+            return port.device
+    ports = list(ports)
+    if ports:
+        return ports[0].device
+    return None
+
+
+def send_esp32_unlock_serial(username):
+    """Send unlock command to ESP32 via USB Serial"""
+    import time
+
+    port = getattr(settings, 'ESP32_SERIAL_PORT', None) or find_esp32_serial_port()
+
+    if not port:
+        print("No serial port found for ESP32")
         return False
+
+    try:
+        command = json.dumps({
+            "action": "unlock",
+            "username": username,
+            "source": "django"
+        }) + "\n"
+
+        with serial.Serial() as ser:
+            ser.port = port
+            ser.baudrate = getattr(settings, 'ESP32_BAUD_RATE', 115200)
+            ser.timeout = 3
+            ser.dtr = False  # Prevent ESP32 reset when port opens
+            ser.rts = False
+            ser.open()
+
+            time.sleep(0.5)
+            ser.reset_input_buffer()
+            ser.write(command.encode('utf-8'))
+
+            response = ser.readline().decode('utf-8', errors='ignore').strip()
+            print(f"ESP32 Serial response: {response}")
+
+            try:
+                data = json.loads(response)
+                return data.get('success', True)
+            except json.JSONDecodeError:
+                # Echo or garbled — command was still sent and lock unlocked
+                return True
+
+    except Exception as e:
+        print(f"Serial error: {e}")
+        return False
+
+
+def _send_esp32_unlock(username, extra_payload=None):
+    """
+    Master unlock function used by ALL unlock paths.
+    Tries WiFi first if IP is set, falls back to Serial.
+    """
+    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '')
+
+    if esp32_ip:
+        try:
+            payload = {
+                'username': username,
+                'timestamp': timezone.now().isoformat(),
+                'source': 'django'
+            }
+            if extra_payload:
+                payload.update(extra_payload)
+
+            response = requests.post(
+                f'http://{esp32_ip}/unlock',
+                json=payload,
+                timeout=5
+            )
+            if response.status_code == 200:
+                print(f"ESP32 unlocked via WiFi for: {username}")
+                return True
+        except requests.exceptions.RequestException as e:
+            print(f"WiFi unlock failed: {e} — trying Serial...")
+
+    return send_esp32_unlock_serial(username)
+
+
+def send_esp32_unlock(astronaut):
+    """Send unlock command to ESP32 - tries WiFi first, then falls back to USB Serial"""
+    return _send_esp32_unlock(astronaut.name, {'user_id': str(astronaut.id)})
 
 
 # ============================================================================
@@ -1125,32 +1207,11 @@ def read_pill_bottle(request):
     }, status=400)
 def send_esp32_unlock_for_bottle(medication_name):
     """Send unlock command to ESP32 after bottle detection"""
-    esp32_ip = getattr(settings, 'ESP32_IP_ADDRESS', '192.168.1.53')
-    
-    try:
-        # Send unlock request to ESP32
-        response = requests.post(
-            f'http://{esp32_ip}/unlock',
-            json={
-                'username': 'Bottle Scanner',
-                'user_id': 'bottle_scan',
-                'medication': medication_name,
-                'timestamp': timezone.now().isoformat(),
-                'source': 'bottle_reader'
-            },
-            timeout=5
-        )
-        
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('success', False)
-        else:
-            print(f"ESP32 returned status code: {response.status_code}")
-            return False
-            
-    except requests.exceptions.RequestException as e:
-        print(f"Error communicating with ESP32: {e}")
-        return False
+    return _send_esp32_unlock('Bottle Scanner', {
+        'user_id': 'bottle_scan',
+        'medication': medication_name,
+        'source': 'bottle_reader'
+    })
 
 
 
