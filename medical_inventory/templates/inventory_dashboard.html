@@ -505,9 +505,8 @@
 <div class="page-header">
     <h1>Inventory Dashboard</h1>
     <p class="page-subtitle">Manage your medical supplies and stock levels</p>
-    <button class="btn btn-secondary" onclick="window.location.href='{% url 'medical_inventory:inventory_graph' %}'">
-        View Trends Graph
-    </button>
+    <button class="view-detail-btn" onclick="window.location.href='{% url 'medical_inventory:inventory_graph' %}'">Trends Graph</button>
+<a href="{% url 'medical_inventory:export_inventory_csv' %}" class="view-detail-btn" style="background:#4CAF50; text-decoration:none;">Export to CSV</a>
 </div>
 
 <div class="container">
