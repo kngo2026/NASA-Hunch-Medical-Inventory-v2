@@ -276,55 +276,32 @@ def checkout_medication(request):
                     quantity=med_data['quantity'],
                 )
 
-            # Unlock container (keep existing call)
+            # Create AccessLog entry for this unlock
+            access_log = AccessLog.objects.create(
+                event_type='UNLOCK',
+                astronaut=astronaut,
+                door_open_seconds=data.get('door_open_seconds'),
+            )
+            for med_data in medications:
+                AccessLogItem.objects.create(
+                    access_log=access_log,
+                    medication=Medication.objects.get(id=med_data['medication_id']),
+                    quantity=med_data['quantity'],
+                )
+
             unlock_success = send_esp32_unlock(astronaut)
 
-            
-            if not unlock_success:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'Failed to unlock medication container. Please try again.'
-                }, status=500)
-            
-            # Third: Only if unlock succeeds, create checkout records
-            checkouts_created = 0
-            for med_data in medication_list:
-                medication = med_data['medication']
-                quantity = med_data['quantity']
-                previous_quantity = med_data['previous_quantity']
-                
-                # Create checkout
-                MedicationCheckout.objects.create(
-                    astronaut=astronaut,
-                    medication=medication,
-                    quantity=quantity,
-                    is_prescription=med_data['is_prescription']
-                )
-                
-                # Create inventory log
-                InventoryLog.objects.create(
-                    medication=medication,
-                    log_type='CHECKOUT',
-                    quantity_change=-quantity,
-                    previous_quantity=previous_quantity,
-                    new_quantity=medication.current_quantity,
-                    performed_by=astronaut,
-                    notes=f"Checkout by {astronaut.name}"
-                )
-                
-                checkouts_created += 1
-            
             SystemLog.objects.create(
                 event_type='CONTAINER_UNLOCK',
                 astronaut=astronaut,
                 description=f"Checkout completed: {checkouts_created} medications dispensed",
                 ip_address=request.META.get('REMOTE_ADDR')
             )
-            
+
             return JsonResponse({
                 'success': True,
                 'checkouts': checkouts_created,
-                'unlock_status': unlock_success
+                'unlock_status': unlock_success,
             })
             
         except Exception as e:
