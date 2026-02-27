@@ -176,6 +176,13 @@
         }, 300); // Debounce 300ms
     });
 
+
+    window.doorOpenSeconds = null;
+#    // Call this from your ESP32/reed switch integration when door closes:
+#    function recordDoorClose(seconds) {
+#        window.doorOpenSeconds = seconds;
+#    }
+
     function filterMedicationCards(gridId, query) {
         const grid = document.getElementById(gridId);
         const cards = grid.querySelectorAll('.medication-card');
@@ -283,10 +290,11 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    astronaut_id: astronautId,
-                    medications: medications
-                })
+               body: JSON.stringify({
+#                astronaut_id: astronautId,
+#                medications: medications,
+#                door_open_seconds: window.doorOpenSeconds || null,  // set by reed switch handler
+#               })
             });
 
             const data = await response.json();

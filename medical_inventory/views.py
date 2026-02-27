@@ -33,6 +33,7 @@ import os
 from datetime import timedelta
 import serial
 import serial.tools.list_ports
+from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog, AccessLog, AccessLogItem
 
 # Import for deep learning model (TensorFlow/Keras)
 try:
@@ -48,7 +49,6 @@ from sklearn.cluster import KMeans
 import pytesseract
 if os.name == 'nt':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-from .models import Astronaut, Medication, Prescription, MedicationCheckout, InventoryLog, SystemLog
 from .forms import MedicationForm
 from sklearn.cluster import KMeans
 
@@ -263,8 +263,22 @@ def checkout_medication(request):
                     'previous_quantity': medication.current_quantity
                 })
             
-            # Second: Try to unlock the container BEFORE making any database changes
+              # Create AccessLog entry for this unlock
+            access_log = AccessLog.objects.create(
+                event_type='UNLOCK',
+                astronaut=astronaut,
+                door_open_seconds=data.get('door_open_seconds'),  # passed from frontend
+            )
+            for med_data in medications:
+                AccessLogItem.objects.create(
+                    access_log=access_log,
+                    medication=Medication.objects.get(id=med_data['medication_id']),
+                    quantity=med_data['quantity'],
+                )
+
+            # Unlock container (keep existing call)
             unlock_success = send_esp32_unlock(astronaut)
+
             
             if not unlock_success:
                 return JsonResponse({
@@ -808,6 +822,18 @@ def update_medication_quantity(request):
             medication.current_quantity = new_quantity
             medication.save()
             
+            if quantity_change > 0:
+                access_log = AccessLog.objects.create(
+                    event_type='RESTOCK',
+                    astronaut=astronaut,
+                    notes=reason,
+                )
+                AccessLogItem.objects.create(
+                    access_log=access_log,
+                    medication=medication,
+                    quantity=quantity_change,
+                )
+                
             # Log the change
             astronaut = request.user.astronaut if hasattr(request.user, 'astronaut') else None
             InventoryLog.objects.create(
@@ -1424,3 +1450,76 @@ def medication_history_api(request):
         'critical': Medication.objects.filter(status__in=['CRITICAL', 'OUT']).count(),
     }
     return JsonResponse({'data': data, 'summary': summary})
+
+
+# ============================================================================
+# ACCESS LOG
+# ============================================================================
+
+@login_required
+def access_log_view(request):
+    """Combined unlock + restock access log"""
+    from django.db.models import Avg
+
+    logs = AccessLog.objects.select_related('astronaut').prefetch_related('items__medication').all()
+
+    # Summary stats
+    unlock_qs  = logs.filter(event_type='UNLOCK')
+    restock_qs = logs.filter(event_type='RESTOCK')
+    avg_door   = unlock_qs.exclude(door_open_seconds__isnull=True).aggregate(
+        avg=Avg('door_open_seconds')
+    )['avg']
+
+    stats = {
+        'total':         logs.count(),
+        'unlocks':       unlock_qs.count(),
+        'restocks':      restock_qs.count(),
+        'avg_door_open': round(avg_door, 1) if avg_door else '—',
+    }
+
+    return render(request, 'access_log.html', {'logs': logs, 'stats': stats})
+
+
+@login_required
+def export_access_log_csv(request):
+    """Export access log to CSV"""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = (
+        f'attachment; filename="access_log_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    )
+
+    writer = csv.writer(response)
+    writer.writerow(['Date', 'Time', 'Event Type', 'Astronaut', 'Astronaut ID',
+                     'Medication', 'Quantity', 'Door Open (seconds)', 'Notes'])
+
+    logs = AccessLog.objects.select_related('astronaut').prefetch_related('items__medication').all()
+
+    for log in logs:
+        items = list(log.items.all())
+        if items:
+            for i, item in enumerate(items):
+                writer.writerow([
+                    log.timestamp.strftime('%Y-%m-%d'),
+                    log.timestamp.strftime('%H:%M:%S'),
+                    log.get_event_type_display(),
+                    log.astronaut.name if log.astronaut else 'System',
+                    log.astronaut.astronaut_id if log.astronaut else '',
+                    item.medication.name,
+                    item.quantity,
+                    log.door_open_seconds if log.event_type == 'UNLOCK' and log.door_open_seconds is not None else '',
+                    log.notes if i == 0 else '',  # only write notes on first row per log
+                ])
+        else:
+            writer.writerow([
+                log.timestamp.strftime('%Y-%m-%d'),
+                log.timestamp.strftime('%H:%M:%S'),
+                log.get_event_type_display(),
+                log.astronaut.name if log.astronaut else 'System',
+                log.astronaut.astronaut_id if log.astronaut else '',
+                '',
+                '',
+                log.door_open_seconds if log.event_type == 'UNLOCK' and log.door_open_seconds is not None else '',
+                log.notes,
+            ])
+
+    return response

@@ -60,6 +60,10 @@ urlpatterns = [
     path('api/medications/restock/', views.restock_medication, name='restock_medication'),
     path('api/medications/delete/<int:medication_id>/', views.delete_medication, name='delete_medication'),
     
+    # Logging and History
+    path('access-log/', views.access_log_view, name='access_log'),
+    path('access-log/export/', views.export_access_log_csv, name='export_access_log_csv'),
+    
     path('inventory/graph/', views.medication_inventory_graph, name='inventory_graph'),
     path('api/medications/history/', views.medication_history_api, name='medication_history_api'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

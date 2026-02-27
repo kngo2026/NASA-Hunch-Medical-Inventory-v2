@@ -251,3 +251,30 @@ class EmergencyAccess(models.Model):
     
     def __str__(self):
         return f"Emergency Access - {self.accessed_at}"
+    
+    
+class AccessLog(models.Model):
+    EVENT_TYPES = [
+        ('UNLOCK',  'Unlock'),
+        ('RESTOCK', 'Restock'),
+    ]
+    event_type        = models.CharField(max_length=10, choices=EVENT_TYPES, default='UNLOCK')
+    timestamp         = models.DateTimeField(default=timezone.now)
+    astronaut         = models.ForeignKey('Astronaut', on_delete=models.SET_NULL, null=True, blank=True, related_name='access_logs')
+    door_open_seconds = models.IntegerField(null=True, blank=True, help_text='Seconds the door was open (unlocks only)')
+    notes             = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.event_type} - {self.timestamp}"
+
+
+class AccessLogItem(models.Model):
+    access_log = models.ForeignKey(AccessLog, on_delete=models.CASCADE, related_name='items')
+    medication = models.ForeignKey('Medication', on_delete=models.CASCADE)
+    quantity   = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.medication.name} x{self.quantity}"
