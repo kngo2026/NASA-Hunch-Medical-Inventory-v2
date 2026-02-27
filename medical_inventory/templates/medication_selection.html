@@ -166,14 +166,11 @@
 
     searchInput.addEventListener('input', function() {
         clearTimeout(searchTimeout);
-        
+        const query = searchInput.value.toLowerCase().trim();
         searchTimeout = setTimeout(function() {
-            const query = searchInput.value.toLowerCase().trim();
-            
-            // Filter both prescription and additional grids
             filterMedicationCards('prescriptionGrid', query);
             filterMedicationCards('additionalGrid', query);
-        }, 300); // Debounce 300ms
+        }, 300);
     });
 
 
