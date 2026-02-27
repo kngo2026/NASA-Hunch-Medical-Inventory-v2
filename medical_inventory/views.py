@@ -89,7 +89,7 @@ def home(request):
     """Home screen"""
     return render(request, 'home.html')
 
-
+@login_required
 def lockscreen(request):
     """Lockscreen with facial recognition"""
     return render(request, 'lockscreen.html')
@@ -213,6 +213,7 @@ def authenticate_face(request):
 # MEDICATION SELECTION AND CHECKOUT
 # ============================================================================
 
+@login_required
 def medication_selection(request, astronaut_id):
     """Medication selection page"""
     astronaut = get_object_or_404(Astronaut, id=astronaut_id)
@@ -230,7 +231,7 @@ def medication_selection(request, astronaut_id):
     
     return render(request, 'medication_selection.html', context)
 
-
+@login_required
 @csrf_exempt
 def checkout_medication(request):
     """Process medication checkout with transaction logging"""
@@ -490,7 +491,7 @@ def delete_medication(request, medication_id):
    
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-
+@login_required
 def inventory_dashboard(request):
     """Inventory dashboard"""
     # Check if user is authenticated
@@ -513,7 +514,7 @@ def inventory_dashboard(request):
     
     return render(request, 'inventory_dashboard.html', context)
 
-
+@login_required
 def medication_detail(request, medication_id):
     """Medication detail view with transaction log"""
     medication = get_object_or_404(Medication, id=medication_id)
@@ -551,6 +552,7 @@ def medication_detail(request, medication_id):
     
     return render(request, 'medication_detail.html', context)
 
+@login_required
 def export_inventory_csv(request):
     """Export full inventory to CSV"""
     response = HttpResponse(content_type='text/csv')
@@ -586,11 +588,12 @@ def export_inventory_csv(request):
 # ASTRONAUT MANAGEMENT (PROTECTED)
 # ============================================================================
 
+@login_required
 def manage_astronauts(request):
     """Astronaut management page"""
     return render(request, 'manage_astronauts.html')
 
-
+@login_required
 @csrf_exempt
 def add_astronaut(request):
     """Add new astronaut with face encoding"""
@@ -721,7 +724,7 @@ def update_astronaut_face(request):
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-
+@login_required
 @csrf_exempt
 def delete_astronaut(request, astronaut_id):
     """Delete astronaut"""
@@ -1195,11 +1198,13 @@ class PillBottleReader:
         print(f"\n FINAL RESULT: {medication.name} ({best_match['score']:.1f}% confidence)")
         
         return result
+    
+@login_required
 def bottle_reading_page(request):
     "Display bottle reader page for scanning medication bottles"
     return render(request, 'bottle_reader.html')
 
-
+@login_required
 @csrf_exempt
 def read_pill_bottle(request):
     """API endpoint for reading pill bottles using OCR and triggering unlock"""
@@ -1314,6 +1319,7 @@ def add_bottle_to_inventory(request):
 # PILL RECOGNITION
 # ============================================================================
 
+
 def pill_recognition(request):
     "Pill recognition page"
     return render(request, 'pill_recognition.html')
@@ -1351,7 +1357,7 @@ def delete_medication(request, medication_id):
     
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-
+@login_required
 def medication_inventory_graph(request):
     "Medication inventory graph page"
     return render(request, 'medication_line_graph.html')
